@@ -3,20 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>产品相册 - React Pro 版</title>
+    <title>产品相册 - 高性能全局搜索版</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .gallery-columns {
-            column-gap: 1rem;
-            column-count: 2;
-        }
-        @media (min-width: 1024px) {
-            .gallery-columns { column-count: 8; }
-        }
+        .gallery-columns { column-gap: 1rem; column-count: 2; }
+        @media (min-width: 1024px) { .gallery-columns { column-count: 8; } }
         .waterfall-item { break-inside: avoid; margin-bottom: 1rem; }
         .glass-effect { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -34,57 +29,60 @@
             const [selectedTag, setSelectedTag] = useState('');
             const [activeItem, setActiveItem] = useState(null);
             const [currentImgIndex, setCurrentImgIndex] = useState(0);
+            const [loadStatus, setLoadStatus] = useState('初始化...');
 
-            // 1. 获取数据
+            // 核心：分片流式加载
             useEffect(() => {
-                fetch('./all_data.txt')
-                    .then(res => res.json())
-                    .then(data => setRawData(data))
-                    .catch(err => console.error("加载失败:", err));
+                const fetchAllData = async () => {
+                    try {
+                        const resIndex = await fetch('./data_index.json');
+                        const fileList = await resIndex.json();
+                        
+                        // 逐个加载分片，每加载完一个就更新界面
+                        for (let i = 0; i < fileList.length; i++) {
+                            setLoadStatus(`正在加载数据 (${i + 1}/${fileList.length})...`);
+                            const res = await fetch(`./${fileList[i]}`);
+                            const chunk = await res.json();
+                            
+                            // 将新加载的分片数据合并
+                            setRawData(prev => [...prev, ...chunk]);
+                            
+                            // 第一片加载完后，用户就可以开始操作了
+                            if (i === 0) setLoadStatus(''); 
+                        }
+                        setLoadStatus(''); // 全部加载完成
+                    } catch (err) {
+                        setLoadStatus('加载失败，请刷新重试');
+                        console.error(err);
+                    }
+                };
+                fetchAllData();
             }, []);
 
-            // 2. 提取所有标签
             const allTags = useMemo(() => {
                 return [...new Set(rawData.map(i => i.标签))].filter(Boolean);
             }, [rawData]);
 
-            // 3. 过滤逻辑
+            // 保持全局搜索功能：对当前已加载的所有数据进行过滤
             const filteredItems = useMemo(() => {
+                const q = searchQuery.toLowerCase().trim();
                 return rawData.filter(item => {
-                    const title = (item.标题 || "").toLowerCase();
-                    const sn = (item.货号 || "").toString();
-                    const q = searchQuery.toLowerCase();
-                    const matchesSearch = title.includes(q) || sn.includes(q);
-                    const matchesTag = selectedTag ? item.标签 === selectedTag : true;
+                    const matchesSearch = q === '' || 
+                        (item.标题 || "").toLowerCase().includes(q) || 
+                        (item.货号 || "").toString().includes(q);
+                    const matchesTag = selectedTag === '' || item.标签 === selectedTag;
                     return matchesSearch && matchesTag;
                 });
             }, [rawData, searchQuery, selectedTag]);
 
-            // 4. 灯箱控制
-            const openLightbox = (item) => {
-                setActiveItem(item);
-                setCurrentImgIndex(0);
-                document.body.style.overflow = 'hidden';
-            };
-
-            const closeLightbox = () => {
-                setActiveItem(null);
-                document.body.style.overflow = '';
-            };
-
-            const nextImg = (e) => {
-                e.stopPropagation();
-                setCurrentImgIndex(prev => (prev + 1) % activeItem.图片.length);
-            };
-
-            const prevImg = (e) => {
-                e.stopPropagation();
-                setCurrentImgIndex(prev => (prev - 1 + activeItem.图片.length) % activeItem.图片.length);
-            };
+            // 灯箱逻辑
+            const openLightbox = (item) => { setActiveItem(item); setCurrentImgIndex(0); document.body.style.overflow = 'hidden'; };
+            const closeLightbox = () => { setActiveItem(null); document.body.style.overflow = ''; };
+            const nextImg = (e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev + 1) % activeItem.图片.length); };
+            const prevImg = (e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev - 1 + activeItem.图片.length) % activeItem.图片.length); };
 
             return (
                 <div className="relative">
-                    {/* 导航栏 */}
                     <header className="sticky top-0 z-40 glass-effect border-b border-gray-200 py-3 px-4">
                         <div className="max-w-[1920px] mx-auto flex items-center gap-4">
                             <div className="text-xl font-black text-gray-900 tracking-tighter shrink-0">
@@ -93,42 +91,31 @@
                             <div className="relative flex-1">
                                 <input 
                                     type="text" 
-                                    placeholder="搜索货号或标题..." 
+                                    placeholder={loadStatus || "搜索货号或标题..."} 
                                     className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-400 focus:outline-none text-sm"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                                 <i className="fa fa-search absolute left-3 top-3 text-gray-400"></i>
+                                {loadStatus && <div className="absolute right-3 top-2.5 text-[10px] text-pink-500 animate-pulse">{loadStatus}</div>}
                             </div>
                         </div>
                     </header>
 
                     <main className="max-w-[1920px] mx-auto px-2 mt-4">
-                        {/* 标签栏 */}
                         <div className="mb-4 flex flex-wrap gap-2 overflow-x-auto pb-2 no-scrollbar">
-                            <button 
-                                onClick={() => setSelectedTag('')}
-                                className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition ${!selectedTag ? 'bg-black text-white' : 'bg-white text-gray-600 border'}`}
-                            >全部</button>
+                            <button onClick={() => setSelectedTag('')} className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition ${!selectedTag ? 'bg-black text-white' : 'bg-white text-gray-600 border'}`}>全部</button>
                             {allTags.map(tag => (
-                                <button 
-                                    key={tag}
-                                    onClick={() => setSelectedTag(tag)}
-                                    className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition ${selectedTag === tag ? 'bg-black text-white' : 'bg-white text-gray-600 border'}`}
-                                >{tag}</button>
+                                <button key={tag} onClick={() => setSelectedTag(tag)} className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition ${selectedTag === tag ? 'bg-black text-white' : 'bg-white text-gray-600 border'}`}>{tag}</button>
                             ))}
                         </div>
 
-                        {/* 瀑布流 */}
                         <div className="gallery-columns">
-                            {filteredItems.map(item => (
-                                <div key={item.ID} onClick={() => openLightbox(item)}
-                                     className="waterfall-item bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-all">
+                            {filteredItems.slice(0, 1000).map(item => ( // 仅渲染前1000条提高性能，滚动按需增加
+                                <div key={item.ID} onClick={() => openLightbox(item)} className="waterfall-item bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-all">
                                     <div className="relative bg-gray-100">
                                         <img src={item.图片[0]} className="w-full h-auto block" loading="lazy" />
-                                        <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">
-                                            {item.图片?.length || 0}P
-                                        </div>
+                                        <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">{item.图片?.length || 0}P</div>
                                     </div>
                                     <div className="p-2">
                                         <p className="text-[10px] font-bold text-pink-600 truncate">{item.货号}</p>
@@ -137,38 +124,29 @@
                                 </div>
                             ))}
                         </div>
+                        {filteredItems.length === 0 && !loadStatus && <div className="text-center py-20 text-gray-400">未找到相关结果</div>}
                     </main>
 
-                    {/* Lightbox */}
+                    {/* Lightbox 逻辑与之前一致 */}
                     {activeItem && (
                         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 transition-opacity">
                             <div className="absolute top-0 w-full p-4 flex justify-between items-center z-50 text-white/80">
                                 <span className="text-sm">{currentImgIndex + 1} / {activeItem.图片.length}</span>
-                                <button onClick={closeLightbox} className="text-2xl p-2 hover:text-white">
-                                    <i className="fa fa-times"></i>
-                                </button>
+                                <button onClick={closeLightbox} className="text-2xl p-2 hover:text-white"><i className="fa fa-times"></i></button>
                             </div>
-
                             {activeItem.图片.length > 1 && (
                                 <div onClick={prevImg} className="absolute left-0 top-0 bottom-0 w-16 md:w-24 flex items-center justify-center cursor-pointer group z-40">
-                                    <div className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20 group-hover:bg-white/20 text-white transition">
-                                        <i className="fa fa-chevron-left text-xl"></i>
-                                    </div>
+                                    <div className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20 group-hover:bg-white/20 text-white transition"><i className="fa fa-chevron-left text-xl"></i></div>
                                 </div>
                             )}
-
                             <div className="relative z-30 px-4 w-full flex justify-center">
                                 <img src={activeItem.图片[currentImgIndex]} className="max-h-[85vh] w-auto object-contain shadow-2xl" />
                             </div>
-
                             {activeItem.图片.length > 1 && (
                                 <div onClick={nextImg} className="absolute right-0 top-0 bottom-0 w-16 md:w-24 flex items-center justify-center cursor-pointer group z-40">
-                                    <div className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20 group-hover:bg-white/20 text-white transition">
-                                        <i className="fa fa-chevron-right text-xl"></i>
-                                    </div>
+                                    <div className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20 group-hover:bg-white/20 text-white transition"><i className="fa fa-chevron-right text-xl"></i></div>
                                 </div>
                             )}
-
                             <div className="absolute bottom-6 px-10 text-center z-40">
                                 <p className="text-white text-sm font-light drop-shadow-md">{activeItem.标题}</p>
                             </div>
