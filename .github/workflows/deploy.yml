@@ -1,0 +1,28 @@
+name: Build and Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [ main ] # 监测主分支代码推送
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Merge JSON files
+        run: python merge_data.py
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: 'your-project-name' # 替换为你在 CF 上的项目名
+          directory: '.' # 部署当前目录下的所有文件
