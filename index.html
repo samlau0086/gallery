@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Items Index</title>
+    <title>Product Gallery - Professional English Version</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -31,28 +31,23 @@
             const [currentImgIndex, setCurrentImgIndex] = useState(0);
             const [loadStatus, setLoadStatus] = useState('Initializing...');
 
-            // 核心：分片流式加载
+            const WHATSAPP_NUMBER = "85265426672";
+
             useEffect(() => {
                 const fetchAllData = async () => {
                     try {
                         const resIndex = await fetch('./data_index.json');
                         const fileList = await resIndex.json();
-                        
-                        // 逐个加载分片，每加载完一个就更新界面
                         for (let i = 0; i < fileList.length; i++) {
-                            setLoadStatus(`Loading (${i + 1}/${fileList.length})...`);
+                            setLoadStatus(`Loading data (${i + 1}/${fileList.length})...`);
                             const res = await fetch(`./${fileList[i]}`);
                             const chunk = await res.json();
-                            
-                            // 将新加载的分片数据合并
                             setRawData(prev => [...prev, ...chunk]);
-                            
-                            // 第一片加载完后，用户就可以开始操作了
                             if (i === 0) setLoadStatus(''); 
                         }
-                        setLoadStatus(''); // 全部加载完成
+                        setLoadStatus('');
                     } catch (err) {
-                        setLoadStatus('Loading failed, please refresh');
+                        setLoadStatus('Load failed, please refresh');
                         console.error(err);
                     }
                 };
@@ -63,7 +58,6 @@
                 return [...new Set(rawData.map(i => i.标签))].filter(Boolean);
             }, [rawData]);
 
-            // 保持全局搜索功能：对当前已加载的所有数据进行过滤
             const filteredItems = useMemo(() => {
                 const q = searchQuery.toLowerCase().trim();
                 return rawData.filter(item => {
@@ -75,14 +69,13 @@
                 });
             }, [rawData, searchQuery, selectedTag]);
 
-            // 灯箱逻辑
             const openLightbox = (item) => { setActiveItem(item); setCurrentImgIndex(0); document.body.style.overflow = 'hidden'; };
             const closeLightbox = () => { setActiveItem(null); document.body.style.overflow = ''; };
             const nextImg = (e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev + 1) % activeItem.图片.length); };
             const prevImg = (e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev - 1 + activeItem.图片.length) % activeItem.图片.length); };
 
             return (
-                <div className="relative">
+                <div className="relative min-h-screen flex flex-col">
                     <header className="sticky top-0 z-40 glass-effect border-b border-gray-200 py-3 px-4">
                         <div className="max-w-[1920px] mx-auto flex items-center gap-4">
                             <div className="text-xl font-black text-gray-900 tracking-tighter shrink-0">
@@ -91,7 +84,7 @@
                             <div className="relative flex-1">
                                 <input 
                                     type="text" 
-                                    placeholder={loadStatus || "Search by SKU or Title..."} 
+                                    placeholder={loadStatus || "Search item no or title..."} 
                                     className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-400 focus:outline-none text-sm"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -102,7 +95,7 @@
                         </div>
                     </header>
 
-                    <main className="max-w-[1920px] mx-auto px-2 mt-4">
+                    <main className="max-w-[1920px] mx-auto px-2 mt-4 flex-1">
                         <div className="mb-4 flex flex-wrap gap-2 overflow-x-auto pb-2 no-scrollbar">
                             <button onClick={() => setSelectedTag('')} className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition ${!selectedTag ? 'bg-black text-white' : 'bg-white text-gray-600 border'}`}>All</button>
                             {allTags.map(tag => (
@@ -111,7 +104,7 @@
                         </div>
 
                         <div className="gallery-columns">
-                            {filteredItems.slice(0, 1000).map(item => ( // 仅渲染前1000条提高性能，滚动按需增加
+                            {filteredItems.map(item => (
                                 <div key={item.ID} onClick={() => openLightbox(item)} className="waterfall-item bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-all">
                                     <div className="relative bg-gray-100">
                                         <img src={item.图片[0]} className="w-full h-auto block" loading="lazy" />
@@ -127,59 +120,58 @@
                         {filteredItems.length === 0 && !loadStatus && <div className="text-center py-20 text-gray-400">No results found</div>}
                     </main>
 
-                    {/* Lightbox 逻辑与之前一致 */}
+                    {/* Lightbox Section */}
                     {activeItem && (
                         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 transition-opacity">
                             <div className="absolute top-0 w-full p-4 flex justify-between items-center z-50 text-white/80">
                                 <span className="text-sm">{currentImgIndex + 1} / {activeItem.图片.length}</span>
                                 <button onClick={closeLightbox} className="text-2xl p-2 hover:text-white"><i className="fa fa-times"></i></button>
                             </div>
+                            
                             {activeItem.图片.length > 1 && (
                                 <div onClick={prevImg} className="absolute left-0 top-0 bottom-0 w-16 md:w-24 flex items-center justify-center cursor-pointer group z-40">
                                     <div className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20 group-hover:bg-white/20 text-white transition"><i className="fa fa-chevron-left text-xl"></i></div>
                                 </div>
                             )}
+
                             <div className="relative z-30 px-4 w-full flex justify-center">
-                                <img src={activeItem.图片[currentImgIndex]} className="max-h-[85vh] w-auto object-contain shadow-2xl" />
+                                <img src={activeItem.图片[currentImgIndex]} className="max-h-[80vh] w-auto object-contain shadow-2xl" />
                             </div>
+
                             {activeItem.图片.length > 1 && (
                                 <div onClick={nextImg} className="absolute right-0 top-0 bottom-0 w-16 md:w-24 flex items-center justify-center cursor-pointer group z-40">
                                     <div className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20 group-hover:bg-white/20 text-white transition"><i className="fa fa-chevron-right text-xl"></i></div>
                                 </div>
                             )}
-                            {/* 灯箱底部信息区 */}
-				<div className="absolute bottom-6 px-10 text-center z-40 flex flex-col items-center gap-3">
-				    {/* 原有的标题 */}
-				    <p className="text-white text-sm font-light drop-shadow-md">{activeItem.标题}</p>
-				    
-				    {/* 新增：咨询按钮 */}
-				    <a 
-				        href={`https://wa.me/85265426672?text=${encodeURIComponent("Hi, I am interested in this product. \n\nItem No: " + activeItem.货号 + "\nTitle: " + activeItem.标题)}`}
-				        target="_blank"
-				        rel="noopener noreferrer"
-				        className="bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-bold py-2 px-6 rounded-full flex items-center gap-2 shadow-xl transition-all transform hover:scale-105 active:scale-95"
-				    >
-				        <i className="fab fa-whatsapp text-lg"></i>
-				        Inquiry Now
-				    </a>
-				</div>
+
+                            <div className="absolute bottom-6 px-10 text-center z-40 flex flex-col items-center gap-3">
+                                <p className="text-white text-sm font-light drop-shadow-md">{activeItem.标题}</p>
+                                <a 
+                                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi, I am interested in this product.\nItem No: " + activeItem.货号 + "\nTitle: " + activeItem.标题)}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-bold py-2 px-6 rounded-full flex items-center gap-2 shadow-xl transition-all transform hover:scale-105"
+                                >
+                                    <i className="fab fa-whatsapp text-lg"></i>
+                                    Inquiry Now
+                                </a>
+                            </div>
                         </div>
                     )}
+
+                    {/* WhatsApp Global Floating Button */}
+                    <a 
+                        href={`https://wa.me/${WHATSAPP_NUMBER}?text=Hello, I'm interested in your products!`}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform active:scale-95 group"
+                    >
+                        <i className="fab fa-whatsapp text-3xl"></i>
+                        <span className="absolute right-16 bg-white text-gray-800 text-xs px-2 py-1 rounded shadow-md border opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                            Contact us
+                        </span>
+                    </a>
                 </div>
-                {/* WhatsApp 浮动按钮 */}
-		<a 
-		    href="https://wa.me/85265426672?text=Hello, I'm interested in your products!" 
-		    target="_blank" 
-		    rel="noopener noreferrer"
-		    className="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform active:scale-95 group"
-		    title="Contact us on WhatsApp"
-		>
-		    <i className="fab fa-whatsapp text-3xl"></i>
-		    {/* 提示小气泡，鼠标悬停时显示 */}
-		    <span className="absolute right-16 bg-white text-gray-800 text-xs px-2 py-1 rounded shadow-md border opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-		        Contact us
-		    </span>
-		</a>
             );
         }
 
