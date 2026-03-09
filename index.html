@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>产品相册 - 高性能全局搜索版</title>
+    <title>Items Index</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -29,7 +29,7 @@
             const [selectedTag, setSelectedTag] = useState('');
             const [activeItem, setActiveItem] = useState(null);
             const [currentImgIndex, setCurrentImgIndex] = useState(0);
-            const [loadStatus, setLoadStatus] = useState('初始化...');
+            const [loadStatus, setLoadStatus] = useState('Initializing...');
 
             // 核心：分片流式加载
             useEffect(() => {
@@ -40,7 +40,7 @@
                         
                         // 逐个加载分片，每加载完一个就更新界面
                         for (let i = 0; i < fileList.length; i++) {
-                            setLoadStatus(`正在加载数据 (${i + 1}/${fileList.length})...`);
+                            setLoadStatus(`Loading (${i + 1}/${fileList.length})...`);
                             const res = await fetch(`./${fileList[i]}`);
                             const chunk = await res.json();
                             
@@ -52,7 +52,7 @@
                         }
                         setLoadStatus(''); // 全部加载完成
                     } catch (err) {
-                        setLoadStatus('加载失败，请刷新重试');
+                        setLoadStatus('Loading failed, please refresh');
                         console.error(err);
                     }
                 };
@@ -91,7 +91,7 @@
                             <div className="relative flex-1">
                                 <input 
                                     type="text" 
-                                    placeholder={loadStatus || "搜索货号或标题..."} 
+                                    placeholder={loadStatus || "Search by SKU or Title..."} 
                                     className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-400 focus:outline-none text-sm"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -104,7 +104,7 @@
 
                     <main className="max-w-[1920px] mx-auto px-2 mt-4">
                         <div className="mb-4 flex flex-wrap gap-2 overflow-x-auto pb-2 no-scrollbar">
-                            <button onClick={() => setSelectedTag('')} className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition ${!selectedTag ? 'bg-black text-white' : 'bg-white text-gray-600 border'}`}>全部</button>
+                            <button onClick={() => setSelectedTag('')} className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition ${!selectedTag ? 'bg-black text-white' : 'bg-white text-gray-600 border'}`}>All</button>
                             {allTags.map(tag => (
                                 <button key={tag} onClick={() => setSelectedTag(tag)} className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition ${selectedTag === tag ? 'bg-black text-white' : 'bg-white text-gray-600 border'}`}>{tag}</button>
                             ))}
@@ -147,12 +147,39 @@
                                     <div className="w-10 h-10 flex items-center justify-center rounded-full bg-black/20 group-hover:bg-white/20 text-white transition"><i className="fa fa-chevron-right text-xl"></i></div>
                                 </div>
                             )}
-                            <div className="absolute bottom-6 px-10 text-center z-40">
-                                <p className="text-white text-sm font-light drop-shadow-md">{activeItem.标题}</p>
-                            </div>
+                            {/* 灯箱底部信息区 */}
+				<div className="absolute bottom-6 px-10 text-center z-40 flex flex-col items-center gap-3">
+				    {/* 原有的标题 */}
+				    <p className="text-white text-sm font-light drop-shadow-md">{activeItem.标题}</p>
+				    
+				    {/* 新增：咨询按钮 */}
+				    <a 
+				        href={`https://wa.me/85265426672?text=${encodeURIComponent("Hi, I am interested in this product. \n\nItem No: " + activeItem.货号 + "\nTitle: " + activeItem.标题)}`}
+				        target="_blank"
+				        rel="noopener noreferrer"
+				        className="bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-bold py-2 px-6 rounded-full flex items-center gap-2 shadow-xl transition-all transform hover:scale-105 active:scale-95"
+				    >
+				        <i className="fab fa-whatsapp text-lg"></i>
+				        Inquiry Now
+				    </a>
+				</div>
                         </div>
                     )}
                 </div>
+                {/* WhatsApp 浮动按钮 */}
+		<a 
+		    href="https://wa.me/85265426672?text=Hello, I'm interested in your products!" 
+		    target="_blank" 
+		    rel="noopener noreferrer"
+		    className="fixed bottom-6 right-6 z-50 bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform active:scale-95 group"
+		    title="Contact us on WhatsApp"
+		>
+		    <i className="fab fa-whatsapp text-3xl"></i>
+		    {/* 提示小气泡，鼠标悬停时显示 */}
+		    <span className="absolute right-16 bg-white text-gray-800 text-xs px-2 py-1 rounded shadow-md border opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+		        Contact us
+		    </span>
+		</a>
             );
         }
 
