@@ -42,7 +42,7 @@
             const [displayCount, setDisplayCount] = useState(40); 
 
             const WHATSAPP_NUMBER = "85265426672"; 
-            const PRIORITY_EXACT_TAGS = new Set(['Clothing', 'Bags', 'Shoes', 'Watches', 'Jewelry', 'Hot Sale']);
+            const PRIORITY_EXACT_TAGS = new Set(['Clothing', 'Bags', 'Shoes', 'Watches', 'Jewelry', 'Other', 'Hot Sale', 'Accessories']);
 
             const getTagClass = (tag) => {
                 if (PRIORITY_EXACT_TAGS.has(tag)) return 'tag-hot';
