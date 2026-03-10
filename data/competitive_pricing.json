@@ -1,52 +1,67 @@
 [
-  {
-    "ID": "_dfUlT0ouM_zQrPj0MHsFq1rtwNU-ZulF2JwmkTg",
-    "标签": "Competitive pricing",
-    "货号": "140765",
-    "标题": "Shoe model",
-    "图片": [
-      "https://xcimg.szwego.com/img/d5516e39/20250605/o_1it07uier15aq170p14dlg4rimc0.png"
-    ],
-    "时间": "2025/06/05"
-  },
-  {
-    "ID": "_df_lTb37nQOFSvsrCl99SWmK8qdN12zbyZpnJXg",
-    "标签": "Competitive pricing",
-    "货号": "140766",
-    "标题": "Jewelry edition",
-    "图片": [
-      "https://xcimg.szwego.com/img/d5516e39/20250605/o_1it080phn1tmv1rilhg1ubq1n950.png"
-    ],
-    "时间": "2025/06/05"
-  },
-  {
-    "ID": "_dsUlTEv5s0LEuQGTyhYe-8s3VRhRPshIJBpOyaA",
-    "标签": "Competitive pricing",
-    "货号": "140767",
-    "标题": "Perfume version.",
-    "图片": [
-      "https://xcimg.szwego.com/img/d5516e39/20250605/o_1it081ht1ii6nrj1hfsbm718630.png"
-    ],
-    "时间": "2025/06/05"
-  },
-  {
-    "ID": "_db5lTbV_aD8d0ITEfmGGUIWZcKAFDwVZ481jhdg",
-    "标签": "Competitive pricing",
-    "货号": "140768",
-    "标题": "Bag version",
-    "图片": [
-      "https://xcimg.szwego.com/img/d5516e39/20250605/o_1it082ejo7hl1ef2f1f1d6gq990.png"
-    ],
-    "时间": "2025/06/05"
-  },
-  {
-    "ID": "_diflTw63THs3sHpck0Dy7vfRyBpvPfAbBTGAftQ",
-    "标签": "Competitive pricing",
-    "货号": "140773",
-    "标题": "Price explanation",
-    "图片": [
-      "https://xcimg.szwego.com/img/d5516e39/20250605/o_1it03oq011h8j19buck5u4dpu0.png"
-    ],
-    "时间": "2025/06/05"
-  }
+    {
+        "ID": "_dfUlT0ouM_zQrPj0MHsFq1rtwNU-ZulF2JwmkTg",
+        "标签": [
+            "Competitive pricing",
+            "Other"
+        ],
+        "货号": "140765",
+        "标题": "Shoe model",
+        "图片": [
+            "https://xcimg.szwego.com/img/d5516e39/20250605/o_1it07uier15aq170p14dlg4rimc0.png"
+        ],
+        "时间": "2025/06/05"
+    },
+    {
+        "ID": "_df_lTb37nQOFSvsrCl99SWmK8qdN12zbyZpnJXg",
+        "标签": [
+            "Competitive pricing",
+            "Other"
+        ],
+        "货号": "140766",
+        "标题": "Jewelry edition",
+        "图片": [
+            "https://xcimg.szwego.com/img/d5516e39/20250605/o_1it080phn1tmv1rilhg1ubq1n950.png"
+        ],
+        "时间": "2025/06/05"
+    },
+    {
+        "ID": "_dsUlTEv5s0LEuQGTyhYe-8s3VRhRPshIJBpOyaA",
+        "标签": [
+            "Competitive pricing",
+            "Other"
+        ],
+        "货号": "140767",
+        "标题": "Perfume version.",
+        "图片": [
+            "https://xcimg.szwego.com/img/d5516e39/20250605/o_1it081ht1ii6nrj1hfsbm718630.png"
+        ],
+        "时间": "2025/06/05"
+    },
+    {
+        "ID": "_db5lTbV_aD8d0ITEfmGGUIWZcKAFDwVZ481jhdg",
+        "标签": [
+            "Competitive pricing",
+            "Other"
+        ],
+        "货号": "140768",
+        "标题": "Bag version",
+        "图片": [
+            "https://xcimg.szwego.com/img/d5516e39/20250605/o_1it082ejo7hl1ef2f1f1d6gq990.png"
+        ],
+        "时间": "2025/06/05"
+    },
+    {
+        "ID": "_diflTw63THs3sHpck0Dy7vfRyBpvPfAbBTGAftQ",
+        "标签": [
+            "Competitive pricing",
+            "Other"
+        ],
+        "货号": "140773",
+        "标题": "Price explanation",
+        "图片": [
+            "https://xcimg.szwego.com/img/d5516e39/20250605/o_1it03oq011h8j19buck5u4dpu0.png"
+        ],
+        "时间": "2025/06/05"
+    }
 ]

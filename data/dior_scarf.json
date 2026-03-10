@@ -1,37 +1,43 @@
 [
-  {
-    "ID": "_duelTSd1al1bdL7QXI_QM6v30ruezjmGpurRLng",
-    "标签": "Dior scarf",
-    "货号": "160190",
-    "标题": "Long-awaited, CD, double-sided jacquard shawl with floral pattern‼️ A classic piece that stands out 🔥 Popular for many years, always in high demand‼️ It may be late, but never absent. Exquisite and unique double-sided craftsmanship. Just close your eyes and dive in! 49*205cm, 100% cashmere.",
-    "图片": [
-      "https://xcimg.szwego.com/img/30123a24/20241008/i1728399469_1507_0.jpg",
-      "https://xcimg.szwego.com/img/30123a24/20241008/i1728399465_9417_1.jpg",
-      "https://xcimg.szwego.com/img/30123a24/20241008/i1728399465_2109_0.jpg",
-      "https://xcimg.szwego.com/img/30123a24/20241008/i1728399470_1316_0.jpg",
-      "https://xcimg.szwego.com/img/30123a24/20241008/i1728399465_6282_2.jpg",
-      "https://xcimg.szwego.com/img/30123a24/20241008/i1728399470_5192_0.jpg",
-      "https://xcimg.szwego.com/img/30123a24/20241008/i1728399469_4551_0.jpg",
-      "https://xcimg.szwego.com/img/30123a24/20241008/i1728399465_1224_6.jpg",
-      "https://xcimg.szwego.com/img/30123a24/20241008/i1728399493_3643_0.jpg"
-    ],
-    "时间": "2025/09/08"
-  },
-  {
-    "ID": "_dAzlT0XFlKLmvjB9Tlu1Y3HP-NXa_ZtEmm27dNA",
-    "标签": "Dior scarf",
-    "货号": "159463",
-    "标题": "Dior new knitted scarf set, including scarf and hat. Stylish and high-quality, with a very comfortable feel.",
-    "图片": [
-      "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_7689_3.jpg",
-      "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_1837_2.jpg",
-      "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_3912_7.jpg",
-      "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_9778_5.jpg",
-      "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_975_4.jpg",
-      "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_5381_1.jpg",
-      "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_9159_6.jpg",
-      "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_2185_0.jpg"
-    ],
-    "时间": "2025/09/08"
-  }
+    {
+        "ID": "_duelTSd1al1bdL7QXI_QM6v30ruezjmGpurRLng",
+        "标签": [
+            "Dior scarf",
+            "Other"
+        ],
+        "货号": "160190",
+        "标题": "Long-awaited, CD, double-sided jacquard shawl with floral pattern‼️ A classic piece that stands out 🔥 Popular for many years, always in high demand‼️ It may be late, but never absent. Exquisite and unique double-sided craftsmanship. Just close your eyes and dive in! 49*205cm, 100% cashmere.",
+        "图片": [
+            "https://xcimg.szwego.com/img/30123a24/20241008/i1728399469_1507_0.jpg",
+            "https://xcimg.szwego.com/img/30123a24/20241008/i1728399465_9417_1.jpg",
+            "https://xcimg.szwego.com/img/30123a24/20241008/i1728399465_2109_0.jpg",
+            "https://xcimg.szwego.com/img/30123a24/20241008/i1728399470_1316_0.jpg",
+            "https://xcimg.szwego.com/img/30123a24/20241008/i1728399465_6282_2.jpg",
+            "https://xcimg.szwego.com/img/30123a24/20241008/i1728399470_5192_0.jpg",
+            "https://xcimg.szwego.com/img/30123a24/20241008/i1728399469_4551_0.jpg",
+            "https://xcimg.szwego.com/img/30123a24/20241008/i1728399465_1224_6.jpg",
+            "https://xcimg.szwego.com/img/30123a24/20241008/i1728399493_3643_0.jpg"
+        ],
+        "时间": "2025/09/08"
+    },
+    {
+        "ID": "_dAzlT0XFlKLmvjB9Tlu1Y3HP-NXa_ZtEmm27dNA",
+        "标签": [
+            "Dior scarf",
+            "Other"
+        ],
+        "货号": "159463",
+        "标题": "Dior new knitted scarf set, including scarf and hat. Stylish and high-quality, with a very comfortable feel.",
+        "图片": [
+            "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_7689_3.jpg",
+            "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_1837_2.jpg",
+            "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_3912_7.jpg",
+            "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_9778_5.jpg",
+            "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_975_4.jpg",
+            "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_5381_1.jpg",
+            "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_9159_6.jpg",
+            "https://xcimg.szwego.com/img/2e29f749/20241112/i1731424945_2185_0.jpg"
+        ],
+        "时间": "2025/09/08"
+    }
 ]
