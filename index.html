@@ -97,19 +97,20 @@
 		    return [...new Set(tags)].filter(Boolean).sort();
 		}, [rawData]);
 
+		// 在 useMemo 过滤逻辑中修改
 		const filteredItems = useMemo(() => {
-			const q = searchQuery.toLowerCase().trim();
-			return rawData.filter(item => {
-			const matchesSearch = q === '' || 
-			    (item.标题 || "").toLowerCase().includes(q) || 
-			    (item.货号 || "").toString().includes(q);
-			    
-			// 修改点：支持数组包含判断
-			const itemTags = Array.isArray(item.标签) ? item.标签 : [item.标签];
-			const matchesTag = selectedTag === '' || itemTags.includes(selectedTag);
-
-			return matchesSearch && matchesTag;
-			});
+		    const q = searchQuery.toLowerCase().trim();
+		    return rawData.filter(item => {
+		        const matchesSearch = q === '' || 
+		            (item.标题 || "").toLowerCase().includes(q) || 
+		            (item.货号 || "").toString().includes(q);
+		            
+		        // --- 核心修改点：支持数组包含判断 ---
+		        const itemTags = Array.isArray(item.标签) ? item.标签 : [item.标签];
+		        const matchesTag = selectedTag === '' || itemTags.includes(selectedTag);
+		        
+		        return matchesSearch && matchesTag;
+		    });
 		}, [rawData, searchQuery, selectedTag]);
 
             const openLightbox = (item) => { setActiveItem(item); setCurrentImgIndex(0); document.body.style.overflow = 'hidden'; };
