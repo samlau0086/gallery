@@ -2,7 +2,7 @@ import os
 import json
 
 # 配置目录
-SOURCE_DIR = './data_en'  # 处理翻译后的英文目录
+SOURCE_DIR = './data'  # 处理翻译后的英文目录
 OUTPUT_DIR = './'         # 索引文件存放目录
 CHUNK_SIZE = 1000         # 每 1000 条数据切分一个文件
 
