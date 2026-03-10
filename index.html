@@ -46,7 +46,13 @@
             
             // --- 核心配置：只有完全匹配这里的词，才会出现在导航栏第一行 ---
             const PRIORITY_EXACT_TAGS = new Set(['bags', 'shoes', 'clothing', 'jewelry', 'accessories', 'glasses', 'pants', 'watches', 'other', 'hot', 'sale', 'new', 'premium', 'best', 'vip', 'limited']);
-
+		
+		// 标题截断函数 (移动端优化)
+            const truncateTitle = (text, limit = 50) => {
+                if (!text) return "";
+                return text.length > limit ? text.substring(0, limit) + "..." : text;
+            };
+            
             const getTagClass = (tag) => {
                 if (PRIORITY_EXACT_TAGS.has(tag)) return 'tag-hot';
                 return 'tag-default';
@@ -215,7 +221,7 @@
 
                             {/* 底部信息与 WhatsApp 咨询 */}
                             <div className="absolute bottom-8 w-full flex flex-col items-center gap-4 z-40" onClick={e => e.stopPropagation()}>
-                                <p className="text-white text-sm px-10 text-center font-light drop-shadow-md">{activeItem.标题}</p>
+                                <p className="text-white text-sm px-10 text-center font-light drop-shadow-md">{truncateTitle(activeItem.标题, 50)}</p>
                                 <a 
                                     href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Sam, I'm interested in:\nItem No: " + activeItem.货号)}`} 
                                     target="_blank" 
