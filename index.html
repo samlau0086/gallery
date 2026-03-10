@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Gallery - Pro Edition</title>
+    <title>Product Gallery - Premium Layout</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -12,22 +12,21 @@
     <style>
         .gallery-columns { column-gap: 1rem; column-count: 2; }
         @media (min-width: 1024px) { .gallery-columns { column-count: 8; } }
-        .waterfall-item { break-inside: avoid; margin-bottom: 1rem; transition: all 0.2s; }
-        .waterfall-item:hover { transform: translateY(-4px); }
+        .waterfall-item { break-inside: avoid; margin-bottom: 1rem; transition: all 0.2s ease; }
+        .waterfall-item:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
         .glass-effect { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         
-        /* 标签基础样式 */
-        .tag-badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; margin-right: 4px; border-width: 1px; }
-        
-        /* 强调色样式 */
+        /* 标签核心样式 */
+        .tag-badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; border-width: 1px; white-space: nowrap; }
         .tag-hot { background-color: #fff1f2; color: #be123c; border-color: #fecdd3; font-weight: bold; }
         .tag-special { background-color: #eff6ff; color: #1d4ed8; border-color: #dbeafe; font-weight: bold; }
         .tag-default { background-color: #f9fafb; color: #6b7280; border-color: #f3f4f6; }
 
-        /* 布局逻辑 */
-        .tags-container { display: flex; flex-wrap: wrap; gap: 4px; }
-        .line-break { width: 100%; height: 0; margin: 2px 0; }
+        /* 强制分行布局逻辑 */
+        .tags-wrapper { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+        .priority-row { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; }
+        .normal-row { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; margin-top: 2px; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -46,8 +45,10 @@
             const [displayCount, setDisplayCount] = useState(40); 
 
             const WHATSAPP_NUMBER = "85265426672"; 
+            
+            // --- 配置：哪些关键词属于重点展示（首排） ---
+            const PRIORITY_KEYWORDS = ['bags', 'shoes', 'clothing', 'jewelry', 'accessories', 'glasses', 'pants', 'watches', 'other', 'hot', 'sale', 'new', 'premium', 'best', 'vip', 'limited'];
 
-            // --- 配置：强调色关键词 ---
             const getTagClass = (tag) => {
                 const t = tag.toLowerCase();
                 if (t.includes('hot') || t.includes('sale') || t.includes('best')) return 'tag-hot';
@@ -55,7 +56,7 @@
                 return 'tag-default';
             };
 
-            // URL Hash 监听 (用于直接分享链接)
+            // URL 路由监听
             useEffect(() => {
                 const handleHashChange = () => {
                     const hash = decodeURIComponent(window.location.hash.replace('#', ''));
@@ -68,22 +69,19 @@
                 return () => window.removeEventListener('hashchange', handleHashChange);
             }, []);
 
-            const updateTag = (tag) => {
-                window.location.hash = tag ? encodeURIComponent(tag) : '';
-            };
+            const updateTag = (tag) => { window.location.hash = tag ? encodeURIComponent(tag) : ''; };
 
-            // 流式加载分片数据 (GitHub Pages 友好型)
+            // 数据加载
             useEffect(() => {
                 const fetchAllData = async () => {
                     try {
                         const resIndex = await fetch('./data_index.json');
                         const fileList = await resIndex.json();
                         for (let i = 0; i < fileList.length; i++) {
-                            setLoadStatus(`Syncing (${i + 1}/${fileList.length})...`);
+                            setLoadStatus(`Loading ${i + 1}/${fileList.length}...`);
                             const res = await fetch(`./${fileList[i]}`);
                             const chunk = await res.json();
                             setRawData(prev => [...prev, ...chunk]);
-                            if (i === 0) setLoadStatus(''); 
                         }
                         setLoadStatus('');
                     } catch (err) { console.error(err); }
@@ -91,7 +89,7 @@
                 fetchAllData();
             }, []);
 
-            // 滚动加载
+            // 滚动无限加载
             useEffect(() => {
                 const handleScroll = () => {
                     if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 800) {
@@ -110,10 +108,7 @@
             const filteredItems = useMemo(() => {
                 const q = searchQuery.toLowerCase().trim();
                 return rawData.filter(item => {
-                    const matchesSearch = q === '' || 
-                        (item.标题 || "").toLowerCase().includes(q) || 
-                        (item.货号 || "").toString().includes(q);
-                    
+                    const matchesSearch = q === '' || (item.标题 || "").toLowerCase().includes(q) || (item.货号 || "").toString().includes(q);
                     const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
                     const matchesTag = selectedTag === '' || itemTags.includes(selectedTag);
                     return matchesSearch && matchesTag;
@@ -124,7 +119,7 @@
                 <div className="relative min-h-screen flex flex-col">
                     <header className="sticky top-0 z-40 glass-effect border-b border-gray-200 py-3 px-4">
                         <div className="max-w-[1920px] mx-auto flex items-center gap-4">
-                            <div className="text-xl font-black text-gray-900 tracking-tighter cursor-pointer shrink-0" onClick={() => updateTag('')}>
+                            <div className="text-xl font-black text-gray-900 tracking-tighter cursor-pointer" onClick={() => updateTag('')}>
                                 ALBUM<span className="text-pink-500">.</span>
                             </div>
                             <div className="relative flex-1">
@@ -141,76 +136,74 @@
                     </header>
 
                     <main className="max-w-[1920px] mx-auto px-2 mt-4 flex-1">
-                        {/* 标签过滤导航 */}
                         <div className="mb-4 flex flex-wrap gap-2 overflow-x-auto pb-2 no-scrollbar">
                             <button onClick={() => updateTag('')} className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition ${!selectedTag ? 'bg-black text-white' : 'bg-white text-gray-600 border'}`}>All</button>
                             {allTags.map(tag => (
-                                <button key={tag} onClick={() => updateTag(tag)} className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition ${selectedTag === tag ? 'bg-black text-white' : 'bg-white text-gray-600 border'}`}>
-                                    {tag}
-                                </button>
+                                <button key={tag} onClick={() => updateTag(tag)} className={`px-3 py-1 rounded-md text-xs whitespace-nowrap transition ${selectedTag === tag ? 'bg-black text-white' : 'bg-white text-gray-600 border'}`}>{tag}</button>
                             ))}
                         </div>
 
-                        {/* 瀑布流布局 */}
                         <div className="gallery-columns">
-                            {filteredItems.slice(0, displayCount).map(item => (
-                                <div key={item.ID} onClick={() => { setActiveItem(item); setCurrentImgIndex(0); }} className="waterfall-item bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden cursor-pointer">
-                                    <div className="relative bg-gray-100">
-                                        <img src={item.图片[0]} className="w-full h-auto block" loading="lazy" />
-                                        <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">{item.图片?.length}P</div>
-                                    </div>
-                                    <div className="p-2">
-                                        <p className="text-[10px] font-bold text-pink-600 truncate">{item.货号}</p>
-                                        <h3 className="text-[11px] text-gray-700 line-clamp-1 mt-0.5 mb-2">{item.标题}</h3>
-                                        
-                                        {/* 双行排序显示标签 */}
-                                        <div className="tags-container">
-                                            {(() => {
-                                                const allItemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
-                                                const priorityKeywords = ['hot', 'sale', 'new', 'premium', 'best', 'vip'];
-                                                
-                                                const priorityTags = allItemTags.filter(t => priorityKeywords.some(key => t.toLowerCase().includes(key)));
-                                                const normalTags = allItemTags.filter(t => !priorityKeywords.some(key => t.toLowerCase().includes(key)));
+                            {filteredItems.slice(0, displayCount).map(item => {
+                                const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
+                                
+                                // 逻辑：拆分重点和普通标签
+                                const priorityTags = itemTags.filter(t => PRIORITY_KEYWORDS.some(key => t.toLowerCase().includes(key)));
+                                const normalTags = itemTags.filter(t => !PRIORITY_KEYWORDS.some(key => t.toLowerCase().includes(key)));
 
-                                                return (
-                                                    <React.Fragment>
-                                                        {priorityTags.map(t => (
-                                                            <span key={t} className={`tag-badge ${getTagClass(t)}`}>{t}</span>
-                                                        ))}
-                                                        {priorityTags.length > 0 && normalTags.length > 0 && <div className="line-break"></div>}
-                                                        {normalTags.map(t => (
-                                                            <span key={t} className={`tag-badge ${getTagClass(t)}`}>{t}</span>
-                                                        ))}
-                                                    </React.Fragment>
-                                                );
-                                            })()}
+                                return (
+                                    <div key={item.ID} onClick={() => { setActiveItem(item); setCurrentImgIndex(0); }} className="waterfall-item bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden cursor-pointer">
+                                        <div className="relative bg-gray-100">
+                                            <img src={item.图片[0]} className="w-full h-auto block" loading="lazy" />
+                                            <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">{item.图片?.length}P</div>
+                                        </div>
+                                        <div className="p-2">
+                                            <p className="text-[10px] font-bold text-pink-600 truncate">{item.货号}</p>
+                                            <h3 className="text-[11px] text-gray-700 line-clamp-1 mt-0.5 mb-2">{item.标题}</h3>
+                                            
+                                            {/* 核心修改：分排渲染容器 */}
+                                            <div className="tags-wrapper">
+                                                {/* 第一排：重点标签 */}
+                                                {priorityTags.length > 0 && (
+                                                    <div className="priority-row">
+                                                        {priorityTags.map(t => <span key={t} className={`tag-badge ${getTagClass(t)}`}>{t}</span>)}
+                                                    </div>
+                                                )}
+                                                
+                                                {/* 第二排：普通标签 */}
+                                                {normalTags.length > 0 && (
+                                                    <div className="normal-row">
+                                                        {normalTags.map(t => <span key={t} className={`tag-badge ${getTagClass(t)}`}>{t}</span>)}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </main>
 
                     {/* Lightbox 详情弹窗 */}
                     {activeItem && (
-                        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 transition-opacity" onClick={() => setActiveItem(null)}>
-                            <div className="absolute top-0 w-full p-4 flex justify-between items-center z-50 text-white/80" onClick={e => e.stopPropagation()}>
-                                <span className="text-sm">{currentImgIndex + 1} / {activeItem.图片.length}</span>
-                                <button onClick={() => setActiveItem(null)} className="text-2xl p-2 hover:text-white"><i className="fa fa-times"></i></button>
+                        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95" onClick={() => setActiveItem(null)}>
+                            <div className="absolute top-0 w-full p-4 flex justify-between text-white/80 z-50" onClick={e => e.stopPropagation()}>
+                                <span>{currentImgIndex + 1} / {activeItem.图片.length}</span>
+                                <button onClick={() => setActiveItem(null)} className="text-2xl"><i className="fa fa-times"></i></button>
                             </div>
                             <div className="relative z-30 px-4 w-full flex justify-center" onClick={e => e.stopPropagation()}>
-                                <img src={activeItem.图片[currentImgIndex]} className="max-h-[80vh] w-auto object-contain shadow-2xl" />
+                                <img src={activeItem.图片[currentImgIndex]} className="max-h-[80vh] object-contain shadow-2xl" />
                                 {activeItem.图片.length > 1 && (
                                     <>
-                                        <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev - 1 + activeItem.图片.length) % activeItem.图片.length); }} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center transition"><i className="fa fa-chevron-left"></i></button>
-                                        <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev + 1) % activeItem.图片.length); }} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center transition"><i className="fa fa-chevron-right"></i></button>
+                                        <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev - 1 + activeItem.图片.length) % activeItem.图片.length); }} className="absolute left-4 top-1/2 w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center"><i className="fa fa-chevron-left"></i></button>
+                                        <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev + 1) % activeItem.图片.length); }} className="absolute right-4 top-1/2 w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center"><i className="fa fa-chevron-right"></i></button>
                                     </>
                                 )}
                             </div>
-                            <div className="absolute bottom-6 px-10 text-center z-40 flex flex-col items-center gap-3" onClick={e => e.stopPropagation()}>
-                                <p className="text-white text-sm font-light">{activeItem.标题}</p>
-                                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Sam, inquiry for Item: " + activeItem.货号)}`} target="_blank" className="bg-[#25D366] text-white text-xs font-bold py-2 px-6 rounded-full flex items-center gap-2 shadow-xl hover:scale-105 transition">
-                                    <i className="fab fa-whatsapp text-lg"></i> Inquiry Now
+                            <div className="absolute bottom-10 flex flex-col items-center gap-4" onClick={e => e.stopPropagation()}>
+                                <p className="text-white text-sm px-6 text-center">{activeItem.标题}</p>
+                                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Sam, inquiry for Item: " + activeItem.货号)}`} target="_blank" className="bg-[#25D366] text-white px-8 py-2 rounded-full font-bold flex items-center gap-2 shadow-lg">
+                                    <i className="fab fa-whatsapp"></i> Inquiry Now
                                 </a>
                             </div>
                         </div>
