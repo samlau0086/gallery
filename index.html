@@ -23,6 +23,9 @@
 
         .nav-section { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
         .nav-divider { width: 100%; border-top: 1px dashed #e5e7eb; margin: 8px 0; }
+        
+        /* 回到顶部按钮过渡动画 */
+        .back-to-top-fade { transition: opacity 0.3s, transform 0.3s; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -38,7 +41,8 @@
             const [activeItem, setActiveItem] = useState(null);
             const [currentImgIndex, setCurrentImgIndex] = useState(0);
             const [isTitleExpanded, setIsTitleExpanded] = useState(false);
-            const [isNavExpanded, setIsNavExpanded] = useState(false); // 控制Nav折叠状态
+            const [isNavExpanded, setIsNavExpanded] = useState(false);
+            const [showBackToTop, setShowBackToTop] = useState(false); // 控制回到顶部按钮显示
             const [loadStatus, setLoadStatus] = useState('Initializing...');
             const [displayCount, setDisplayCount] = useState(40); 
 
@@ -81,15 +85,27 @@
                 fetchAllData();
             }, []);
 
+            // 综合滚动监听
             useEffect(() => {
                 const handleScroll = () => {
+                    // 无限滚动加载
                     if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 800) {
                         setDisplayCount(prev => prev + 40);
+                    }
+                    // 回到顶部按钮显示逻辑 (滚动超过300px显示)
+                    if (window.scrollY > 300) {
+                        setShowBackToTop(true);
+                    } else {
+                        setShowBackToTop(false);
                     }
                 };
                 window.addEventListener('scroll', handleScroll);
                 return () => window.removeEventListener('scroll', handleScroll);
             }, []);
+
+            const scrollToTop = () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            };
 
             const allTags = useMemo(() => {
                 const tags = rawData.flatMap(i => Array.isArray(i.标签) ? i.标签 : (i.标签 ? [i.标签] : []));
@@ -133,9 +149,7 @@
                     </header>
 
                     <main className="max-w-[1920px] mx-auto px-4 mt-6 flex-1">
-                        {/* 导航标签区域 */}
                         <div className="mb-6 flex flex-col gap-2">
-                            {/* 第一行：固定展示的 Priority Tags */}
                             <div className="nav-section">
                                 <button onClick={() => updateTag('')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${!selectedTag ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}>
                                     ALL
@@ -147,7 +161,6 @@
                                 ))}
                             </div>
 
-                            {/* 分割线与展开按钮 */}
                             {navGroups.normal.length > 0 && (
                                 <div className="flex items-center gap-2 mt-1">
                                     <div className="flex-1 border-top border-gray-200 border-dashed border-t"></div>
@@ -161,7 +174,6 @@
                                 </div>
                             )}
 
-                            {/* 第二行：带折叠逻辑的 Normal Tags */}
                             <div className={`nav-section transition-all duration-300 overflow-hidden relative ${isNavExpanded ? 'max-h-[2000px]' : 'max-h-24'}`}>
                                 {navGroups.normal.map(tag => (
                                     <button key={tag} onClick={() => updateTag(tag)} className={`px-3 py-1.5 rounded-md text-xs whitespace-nowrap transition border ${selectedTag === tag ? 'bg-black border-black text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}>
@@ -196,10 +208,8 @@
                         </div>
                     </main>
 
-                    {/* Lightbox 详情弹窗 */}
                     {activeItem && (
                         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 transition-all" onClick={() => setActiveItem(null)}>
-                            {/* 关闭按钮 */}
                             <div className="absolute top-0 w-full p-4 flex justify-between items-center z-50 text-white/80" onClick={e => e.stopPropagation()}>
                                 <span className="text-sm font-mono">{currentImgIndex + 1} / {activeItem.图片.length}</span>
                                 <button onClick={() => setActiveItem(null)} className="text-3xl p-2 hover:scale-110 transition active:scale-95">
@@ -207,7 +217,6 @@
                                 </button>
                             </div>
 
-                            {/* 图片展示 */}
                             <div className="relative z-30 px-4 w-full h-full flex items-center justify-center overflow-hidden" onClick={e => e.stopPropagation()}>
                                 <img src={activeItem.图片[currentImgIndex]} className="max-h-[70vh] md:max-h-[80vh] w-auto object-contain shadow-2xl transition-all" />
                                 
@@ -223,7 +232,6 @@
                                 )}
                             </div>
 
-                            {/* 标题背景与展开逻辑 */}
                             <div className="absolute bottom-6 w-full flex flex-col items-center gap-4 z-40 px-6" onClick={e => e.stopPropagation()}>
                                 <div 
                                     className="bg-[#3335] backdrop-blur-sm px-4 py-2 rounded-xl text-white text-[13px] md:text-sm text-center font-light border border-white/10 max-w-[95%] md:max-w-[70%] cursor-pointer"
@@ -252,14 +260,25 @@
                         </div>
                     )}
 
-                    {/* 悬浮 WhatsApp */}
-                    <a 
-                        href={`https://wa.me/${WHATSAPP_NUMBER}`} 
-                        target="_blank" 
-                        className="fixed bottom-6 right-6 z-40 bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition"
-                    >
-                        <i className="fab fa-whatsapp text-3xl"></i>
-                    </a>
+                    {/* 右下角悬浮按钮组 */}
+                    <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
+                        {/* 回到顶部按钮 (新增) */}
+                        <button 
+                            onClick={scrollToTop}
+                            className={`w-14 h-14 rounded-full bg-white/80 backdrop-blur-md text-gray-600 flex items-center justify-center shadow-lg hover:bg-white hover:scale-110 active:scale-95 transition-all back-to-top-fade border border-gray-100 ${showBackToTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}
+                        >
+                            <i className="fa fa-arrow-up text-xl"></i>
+                        </button>
+
+                        {/* WhatsApp 悬浮按钮 */}
+                        <a 
+                            href={`https://wa.me/${WHATSAPP_NUMBER}`} 
+                            target="_blank" 
+                            className="bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all"
+                        >
+                            <i className="fab fa-whatsapp text-3xl"></i>
+                        </a>
+                    </div>
                 </div>
             );
         }
