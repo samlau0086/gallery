@@ -23,8 +23,9 @@
 
         .nav-section { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
         .nav-divider { width: 100%; border-top: 1px dashed #e5e7eb; margin: 8px 0; }
-        /* 按钮淡入淡出动画 */
-        .fade-in-up { transition: all 0.3s ease; }
+        
+        /* 回到顶部按钮过渡动画 */
+        .back-to-top-fade { transition: opacity 0.3s, transform 0.3s; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -41,7 +42,7 @@
             const [currentImgIndex, setCurrentImgIndex] = useState(0);
             const [isTitleExpanded, setIsTitleExpanded] = useState(false);
             const [isNavExpanded, setIsNavExpanded] = useState(false);
-            const [showBackToTop, setShowBackToTop] = useState(false); // 回到顶部状态
+            const [showBackToTop, setShowBackToTop] = useState(false); // 控制回到顶部按钮显示
             const [loadStatus, setLoadStatus] = useState('Initializing...');
             const [displayCount, setDisplayCount] = useState(40); 
 
@@ -53,7 +54,6 @@
                 return 'tag-default';
             };
 
-            // 监听 URL Hash
             useEffect(() => {
                 const handleHashChange = () => {
                     const hash = decodeURIComponent(window.location.hash.replace('#', ''));
@@ -68,7 +68,6 @@
 
             const updateTag = (tag) => { window.location.hash = tag ? encodeURIComponent(tag) : ''; };
 
-            // 数据加载
             useEffect(() => {
                 const fetchAllData = async () => {
                     try {
@@ -86,14 +85,14 @@
                 fetchAllData();
             }, []);
 
-            // 综合滚动监听：无限加载 + 回到顶部按钮显示
+            // 综合滚动监听
             useEffect(() => {
                 const handleScroll = () => {
-                    // 1. 无限滚动
+                    // 无限滚动加载
                     if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 800) {
                         setDisplayCount(prev => prev + 40);
                     }
-                    // 2. 回到顶部按钮 (超过300px显示)
+                    // 回到顶部按钮显示逻辑 (滚动超过300px显示)
                     if (window.scrollY > 300) {
                         setShowBackToTop(true);
                     } else {
@@ -108,24 +107,16 @@
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
 
-            // 导航标签逻辑
+            const allTags = useMemo(() => {
+                const tags = rawData.flatMap(i => Array.isArray(i.标签) ? i.标签 : (i.标签 ? [i.标签] : []));
+                return [...new Set(tags)].filter(Boolean).sort();
+            }, [rawData]);
+
             const navGroups = useMemo(() => {
-                const allTagsRaw = [...new Set(rawData.flatMap(i => Array.isArray(i.标签) ? i.标签 : (i.标签 ? [i.标签] : [])))].filter(Boolean);
-                const priority = allTagsRaw.filter(t => PRIORITY_EXACT_TAGS.has(t)).sort();
-                
-                let normalBaseTags = [];
-                if (!selectedTag || !PRIORITY_EXACT_TAGS.has(selectedTag)) {
-                    normalBaseTags = allTagsRaw.filter(t => !PRIORITY_EXACT_TAGS.has(t));
-                } else {
-                    const relatedItems = rawData.filter(item => {
-                        const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
-                        return itemTags.includes(selectedTag);
-                    });
-                    const relatedTags = [...new Set(relatedItems.flatMap(i => Array.isArray(i.标签) ? i.标签 : [i.标签]))];
-                    normalBaseTags = relatedTags.filter(t => t !== selectedTag && !PRIORITY_EXACT_TAGS.has(t));
-                }
-                return { priority, normal: normalBaseTags.sort() };
-            }, [rawData, selectedTag]);
+                const priority = allTags.filter(t => PRIORITY_EXACT_TAGS.has(t));
+                const normal = allTags.filter(t => !PRIORITY_EXACT_TAGS.has(t));
+                return { priority, normal };
+            }, [allTags]);
 
             const filteredItems = useMemo(() => {
                 const q = searchQuery.toLowerCase().trim();
@@ -175,9 +166,9 @@
                                     <div className="flex-1 border-top border-gray-200 border-dashed border-t"></div>
                                     <button 
                                         onClick={() => setIsNavExpanded(!isNavExpanded)}
-                                        className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hover:text-pink-500 transition"
+                                        className="text-[10px] font-bold text-pink-500 uppercase tracking-widest hover:text-pink-500 transition"
                                     >
-                                        {isNavExpanded ? 'Show Less' : `More Collections (${navGroups.normal.length})`}
+                                        {isNavExpanded ? 'Show Less' : `Show More Collections (${navGroups.normal.length})`}
                                     </button>
                                     <div className="flex-1 border-top border-gray-200 border-dashed border-t"></div>
                                 </div>
@@ -189,7 +180,7 @@
                                         {tag}
                                     </button>
                                 ))}
-                                {!isNavExpanded && navGroups.normal.length > 8 && (
+                                {!isNavExpanded && (
                                     <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none"></div>
                                 )}
                             </div>
@@ -217,57 +208,69 @@
                         </div>
                     </main>
 
-                    {/* Lightbox 弹窗 */}
                     {activeItem && (
                         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 transition-all" onClick={() => setActiveItem(null)}>
                             <div className="absolute top-0 w-full p-4 flex justify-between items-center z-50 text-white/80" onClick={e => e.stopPropagation()}>
                                 <span className="text-sm font-mono">{currentImgIndex + 1} / {activeItem.图片.length}</span>
-                                <button onClick={() => setActiveItem(null)} className="text-3xl p-2 hover:scale-110">
+                                <button onClick={() => setActiveItem(null)} className="text-3xl p-2 hover:scale-110 transition active:scale-95">
                                     <i className="fa fa-times"></i>
                                 </button>
                             </div>
 
                             <div className="relative z-30 px-4 w-full h-full flex items-center justify-center overflow-hidden" onClick={e => e.stopPropagation()}>
-                                <img src={activeItem.图片[currentImgIndex]} className="max-h-[70vh] md:max-h-[80vh] w-auto object-contain shadow-2xl" />
+                                <img src={activeItem.图片[currentImgIndex]} className="max-h-[70vh] md:max-h-[80vh] w-auto object-contain shadow-2xl transition-all" />
+                                
                                 {activeItem.图片.length > 1 && (
                                     <div className="absolute inset-0 flex items-center justify-between px-2 pointer-events-none">
-                                        <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev - 1 + activeItem.图片.length) % activeItem.图片.length); }} className="w-10 h-10 rounded-full bg-black/20 text-white flex items-center justify-center pointer-events-auto hover:bg-white/10 transition">
-                                            <i className="fa fa-chevron-left"></i>
+                                        <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev - 1 + activeItem.图片.length) % activeItem.图片.length); }} className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-black/20 text-white flex items-center justify-center pointer-events-auto hover:bg-white/10 transition">
+                                            <i className="fa fa-chevron-left text-xl"></i>
                                         </button>
-                                        <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev + 1) % activeItem.图片.length); }} className="w-10 h-10 rounded-full bg-black/20 text-white flex items-center justify-center pointer-events-auto hover:bg-white/10 transition">
-                                            <i className="fa fa-chevron-right"></i>
+                                        <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev + 1) % activeItem.图片.length); }} className="w-10 h-10 md:w-14 md:h-14 rounded-full bg-black/20 text-white flex items-center justify-center pointer-events-auto hover:bg-white/10 transition">
+                                            <i className="fa fa-chevron-right text-xl"></i>
                                         </button>
                                     </div>
                                 )}
                             </div>
 
                             <div className="absolute bottom-6 w-full flex flex-col items-center gap-4 z-40 px-6" onClick={e => e.stopPropagation()}>
-                                <div className="bg-[#3335] backdrop-blur-sm px-4 py-2 rounded-xl text-white text-[13px] text-center font-light border border-white/10 max-w-[95%] cursor-pointer" onClick={() => setIsTitleExpanded(!isTitleExpanded)}>
+                                <div 
+                                    className="bg-[#3335] backdrop-blur-sm px-4 py-2 rounded-xl text-white text-[13px] md:text-sm text-center font-light border border-white/10 max-w-[95%] md:max-w-[70%] cursor-pointer"
+                                    onClick={() => setIsTitleExpanded(!isTitleExpanded)}
+                                >
                                     {isTitleExpanded ? (
-                                        <span>{activeItem.标题} <span className="ml-2 text-pink-400 font-bold underline text-[11px]">Less</span></span>
+                                        <span>
+                                            {activeItem.标题} 
+                                            <span className="ml-2 text-pink-400 font-bold underline text-[11px]">Less</span>
+                                        </span>
                                     ) : (
-                                        <span>{activeItem.标题.length > 50 ? activeItem.标题.substring(0, 50) + "..." : activeItem.标题}
-                                        {activeItem.标题.length > 50 && <span className="ml-2 text-pink-400 font-bold underline text-[11px]">More</span>}</span>
+                                        <span>
+                                            {activeItem.标题.length > 50 ? activeItem.标题.substring(0, 50) + "..." : activeItem.标题}
+                                            {activeItem.标题.length > 50 && <span className="ml-2 text-pink-400 font-bold underline text-[11px]">More</span>}
+                                        </span>
                                     )}
                                 </div>
-                                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Sam, I'm interested in:\nItem: " + activeItem.货号 + "\n" + activeItem.标题)}`} target="_blank" className="bg-[#25D366] text-white px-8 py-2.5 rounded-full font-bold flex items-center gap-2 shadow-xl hover:scale-105 transition">
+                                <a 
+                                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Sam, I'm interested in:\nItem: " + activeItem.货号 + "\n" + activeItem.标题)}`} 
+                                    target="_blank" 
+                                    className="bg-[#25D366] text-white px-8 py-2.5 rounded-full font-bold flex items-center gap-2 shadow-xl hover:scale-105 transition"
+                                >
                                     <i className="fab fa-whatsapp text-xl"></i> Inquiry Now
                                 </a>
                             </div>
                         </div>
                     )}
 
-                    {/* 右下角浮动按钮组 */}
+                    {/* 右下角悬浮按钮组 */}
                     <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
-                        {/* 回到顶部按钮 */}
+                        {/* 回到顶部按钮 (新增) */}
                         <button 
                             onClick={scrollToTop}
-                            className={`w-14 h-14 rounded-full bg-white/90 backdrop-blur-md text-gray-600 flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all fade-in-up border border-gray-200 ${showBackToTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}
+                            className={`w-14 h-14 rounded-full bg-white/80 backdrop-blur-md text-gray-600 flex items-center justify-center shadow-lg hover:bg-white hover:scale-110 active:scale-95 transition-all back-to-top-fade border border-gray-100 ${showBackToTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}
                         >
                             <i className="fa fa-arrow-up text-xl"></i>
                         </button>
 
-                        {/* WhatsApp 按钮 */}
+                        {/* WhatsApp 悬浮按钮 */}
                         <a 
                             href={`https://wa.me/${WHATSAPP_NUMBER}`} 
                             target="_blank" 
