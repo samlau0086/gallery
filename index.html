@@ -23,7 +23,6 @@
 
         .nav-section { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
         .nav-divider { width: 100%; border-top: 1px dashed #e5e7eb; margin: 8px 0; }
-        /* 按钮淡入淡出动画 */
         .fade-in-up { transition: all 0.3s ease; }
     </style>
 </head>
@@ -36,12 +35,13 @@
         function App() {
             const [rawData, setRawData] = useState([]);
             const [searchQuery, setSearchQuery] = useState('');
-            const [selectedTag, setSelectedTag] = useState('');
+            const [selectedTag, setSelectedTag] = useState(''); // 当前选中的主分类或子标签
+            const [parentTag, setParentTag] = useState('');     // 记录当前生效的父类（第一行标签）
             const [activeItem, setActiveItem] = useState(null);
             const [currentImgIndex, setCurrentImgIndex] = useState(0);
             const [isTitleExpanded, setIsTitleExpanded] = useState(false);
             const [isNavExpanded, setIsNavExpanded] = useState(false);
-            const [showBackToTop, setShowBackToTop] = useState(false); // 回到顶部状态
+            const [showBackToTop, setShowBackToTop] = useState(false);
             const [loadStatus, setLoadStatus] = useState('Initializing...');
             const [displayCount, setDisplayCount] = useState(40); 
 
@@ -53,20 +53,41 @@
                 return 'tag-default';
             };
 
-            // 监听 URL Hash
+            // 获取所有不重复标签的原始列表
+            const allTagsRaw = useMemo(() => {
+                return [...new Set(rawData.flatMap(i => Array.isArray(i.标签) ? i.标签 : (i.标签 ? [i.标签] : [])))].filter(Boolean);
+            }, [rawData]);
+
+            // 逻辑 1: 处理 Hash 变化（不区分大小写）
             useEffect(() => {
                 const handleHashChange = () => {
-                    const hash = decodeURIComponent(window.location.hash.replace('#', ''));
-                    setSelectedTag(hash || '');
+                    const hashText = decodeURIComponent(window.location.hash.replace('#', '')).trim();
+                    if (!hashText) {
+                        setSelectedTag('');
+                        setParentTag('');
+                    } else {
+                        // 在原始标签库中寻找匹配项（不区分大小写）
+                        const matchedTag = allTagsRaw.find(t => t.toLowerCase() === hashText.toLowerCase());
+                        const finalTag = matchedTag || hashText;
+                        
+                        setSelectedTag(finalTag);
+                        // 如果选中的是第一行标签，更新父类记录
+                        if (PRIORITY_EXACT_TAGS.has(finalTag)) {
+                            setParentTag(finalTag);
+                        }
+                    }
                     setDisplayCount(40);
                     window.scrollTo(0, 0);
                 };
-                handleHashChange();
+                
+                if (rawData.length > 0) handleHashChange();
                 window.addEventListener('hashchange', handleHashChange);
                 return () => window.removeEventListener('hashchange', handleHashChange);
-            }, []);
+            }, [rawData, allTagsRaw]);
 
-            const updateTag = (tag) => { window.location.hash = tag ? encodeURIComponent(tag) : ''; };
+            const updateTag = (tag) => { 
+                window.location.hash = tag ? encodeURIComponent(tag) : ''; 
+            };
 
             // 数据加载
             useEffect(() => {
@@ -86,56 +107,53 @@
                 fetchAllData();
             }, []);
 
-            // 综合滚动监听：无限加载 + 回到顶部按钮显示
             useEffect(() => {
                 const handleScroll = () => {
-                    // 1. 无限滚动
                     if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 800) {
                         setDisplayCount(prev => prev + 40);
                     }
-                    // 2. 回到顶部按钮 (超过300px显示)
-                    if (window.scrollY > 300) {
-                        setShowBackToTop(true);
-                    } else {
-                        setShowBackToTop(false);
-                    }
+                    setShowBackToTop(window.scrollY > 300);
                 };
                 window.addEventListener('scroll', handleScroll);
                 return () => window.removeEventListener('scroll', handleScroll);
             }, []);
 
-            const scrollToTop = () => {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            };
+            const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
-            // 导航标签逻辑
+            // 导航标签分组逻辑
             const navGroups = useMemo(() => {
-                const allTagsRaw = [...new Set(rawData.flatMap(i => Array.isArray(i.标签) ? i.标签 : (i.标签 ? [i.标签] : [])))].filter(Boolean);
                 const priority = allTagsRaw.filter(t => PRIORITY_EXACT_TAGS.has(t)).sort();
                 
                 let normalBaseTags = [];
-                if (!selectedTag || !PRIORITY_EXACT_TAGS.has(selectedTag)) {
-                    normalBaseTags = allTagsRaw.filter(t => !PRIORITY_EXACT_TAGS.has(t));
-                } else {
+                // 逻辑 2: 当点击子标签时，父类筛选器依然生效
+                // 如果当前有父类选中，第二行只展示该父类下的相关标签
+                if (parentTag) {
                     const relatedItems = rawData.filter(item => {
                         const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
-                        return itemTags.includes(selectedTag);
+                        return itemTags.includes(parentTag);
                     });
                     const relatedTags = [...new Set(relatedItems.flatMap(i => Array.isArray(i.标签) ? i.标签 : [i.标签]))];
-                    normalBaseTags = relatedTags.filter(t => t !== selectedTag && !PRIORITY_EXACT_TAGS.has(t));
+                    normalBaseTags = relatedTags.filter(t => t !== parentTag && !PRIORITY_EXACT_TAGS.has(t));
+                } else {
+                    normalBaseTags = allTagsRaw.filter(t => !PRIORITY_EXACT_TAGS.has(t));
                 }
                 return { priority, normal: normalBaseTags.sort() };
-            }, [rawData, selectedTag]);
+            }, [allTagsRaw, rawData, parentTag]);
 
+            // 过滤产品列表
             const filteredItems = useMemo(() => {
                 const q = searchQuery.toLowerCase().trim();
                 return rawData.filter(item => {
-                    const matchesSearch = q === '' || (item.标题 || "").toLowerCase().includes(q) || (item.货号 || "").toString().includes(q);
                     const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
-                    const matchesTag = selectedTag === '' || itemTags.includes(selectedTag);
-                    return matchesSearch && matchesTag;
+                    const matchesSearch = q === '' || (item.标题 || "").toLowerCase().includes(q) || (item.货号 || "").toString().includes(q);
+                    
+                    // 核心筛选逻辑：必须同时满足选中的标签 (selectedTag) 和 固定的父类标签 (parentTag)
+                    const matchesSelected = selectedTag === '' || itemTags.includes(selectedTag);
+                    const matchesParent = parentTag === '' || itemTags.includes(parentTag);
+                    
+                    return matchesSearch && matchesSelected && matchesParent;
                 });
-            }, [rawData, searchQuery, selectedTag]);
+            }, [rawData, searchQuery, selectedTag, parentTag]);
 
             return (
                 <div className="relative min-h-screen flex flex-col font-sans text-gray-900">
@@ -159,17 +177,19 @@
 
                     <main className="max-w-[1920px] mx-auto px-4 mt-6 flex-1">
                         <div className="mb-6 flex flex-col gap-2">
+                            {/* 第一行：Priority Tags */}
                             <div className="nav-section">
-                                <button onClick={() => updateTag('')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${!selectedTag ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}>
+                                <button onClick={() => updateTag('')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${!parentTag ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}>
                                     ALL
                                 </button>
                                 {navGroups.priority.map(tag => (
-                                    <button key={tag} onClick={() => updateTag(tag)} className={`px-4 py-1.5 rounded-full text-xs font-bold transition border ${selectedTag === tag ? 'bg-pink-500 border-pink-500 text-white' : 'bg-white border-pink-200 text-pink-600'}`}>
+                                    <button key={tag} onClick={() => updateTag(tag)} className={`px-4 py-1.5 rounded-full text-xs font-bold transition border ${parentTag === tag ? 'bg-pink-500 border-pink-500 text-white' : 'bg-white border-pink-200 text-pink-600'}`}>
                                         <i className="fa fa-star mr-1 text-[10px]"></i> {tag}
                                     </button>
                                 ))}
                             </div>
 
+                            {/* 分割线与展开按钮 */}
                             {navGroups.normal.length > 0 && (
                                 <div className="flex items-center gap-2 mt-1">
                                     <div className="flex-1 border-top border-gray-200 border-dashed border-t"></div>
@@ -183,6 +203,7 @@
                                 </div>
                             )}
 
+                            {/* 第二行：Normal Tags */}
                             <div className={`nav-section transition-all duration-300 overflow-hidden relative ${isNavExpanded ? 'max-h-[2000px]' : 'max-h-24'}`}>
                                 {navGroups.normal.map(tag => (
                                     <button key={tag} onClick={() => updateTag(tag)} className={`px-3 py-1.5 rounded-md text-xs whitespace-nowrap transition border ${selectedTag === tag ? 'bg-black border-black text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}>
@@ -195,6 +216,7 @@
                             </div>
                         </div>
 
+                        {/* 产品列表渲染 */}
                         <div className="gallery-columns">
                             {filteredItems.slice(0, displayCount).map(item => {
                                 const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
@@ -257,22 +279,11 @@
                         </div>
                     )}
 
-                    {/* 右下角浮动按钮组 */}
                     <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
-                        {/* 回到顶部按钮 */}
-                        <button 
-                            onClick={scrollToTop}
-                            className={`w-14 h-14 rounded-full bg-white/90 backdrop-blur-md text-gray-600 flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all fade-in-up border border-gray-200 ${showBackToTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}
-                        >
+                        <button onClick={scrollToTop} className={`w-14 h-14 rounded-full bg-white/90 backdrop-blur-md text-gray-600 flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-all fade-in-up border border-gray-200 ${showBackToTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
                             <i className="fa fa-arrow-up text-xl"></i>
                         </button>
-
-                        {/* WhatsApp 按钮 */}
-                        <a 
-                            href={`https://wa.me/${WHATSAPP_NUMBER}`} 
-                            target="_blank" 
-                            className="bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all"
-                        >
+                        <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" className="bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all">
                             <i className="fab fa-whatsapp text-3xl"></i>
                         </a>
                     </div>
