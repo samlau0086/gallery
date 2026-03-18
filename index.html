@@ -22,8 +22,13 @@
         .tag-default { background-color: #f9fafb; color: #6b7280; border-color: #f3f4f6; }
 
         .nav-section { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
-        .nav-divider { width: 100%; border-top: 1px dashed #e5e7eb; margin: 8px 0; }
         .fade-in-up { transition: all 0.3s ease; }
+
+        /* Loading 旋转动画 */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow { animation: spin 1s linear infinite; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -35,13 +40,14 @@
         function App() {
             const [rawData, setRawData] = useState([]);
             const [searchQuery, setSearchQuery] = useState('');
-            const [selectedTag, setSelectedTag] = useState(''); // 当前选中的主分类或子标签
-            const [parentTag, setParentTag] = useState('');     // 记录当前生效的父类（第一行标签）
+            const [selectedTag, setSelectedTag] = useState('');
+            const [parentTag, setParentTag] = useState('');
             const [activeItem, setActiveItem] = useState(null);
             const [currentImgIndex, setCurrentImgIndex] = useState(0);
             const [isTitleExpanded, setIsTitleExpanded] = useState(false);
             const [isNavExpanded, setIsNavExpanded] = useState(false);
             const [showBackToTop, setShowBackToTop] = useState(false);
+            const [isFiltering, setIsFiltering] = useState(false); // 控制加载动画
             const [loadStatus, setLoadStatus] = useState('Initializing...');
             const [displayCount, setDisplayCount] = useState(40); 
 
@@ -53,31 +59,34 @@
                 return 'tag-default';
             };
 
-            // 获取所有不重复标签的原始列表
             const allTagsRaw = useMemo(() => {
                 return [...new Set(rawData.flatMap(i => Array.isArray(i.标签) ? i.标签 : (i.标签 ? [i.标签] : [])))].filter(Boolean);
             }, [rawData]);
 
-            // 逻辑 1: 处理 Hash 变化（不区分大小写）
+            // 监听 Hash 变化
             useEffect(() => {
                 const handleHashChange = () => {
+                    setIsFiltering(true); // 开始加载动画
+                    
                     const hashText = decodeURIComponent(window.location.hash.replace('#', '')).trim();
-                    if (!hashText) {
-                        setSelectedTag('');
-                        setParentTag('');
-                    } else {
-                        // 在原始标签库中寻找匹配项（不区分大小写）
-                        const matchedTag = allTagsRaw.find(t => t.toLowerCase() === hashText.toLowerCase());
-                        const finalTag = matchedTag || hashText;
-                        
-                        setSelectedTag(finalTag);
-                        // 如果选中的是第一行标签，更新父类记录
-                        if (PRIORITY_EXACT_TAGS.has(finalTag)) {
-                            setParentTag(finalTag);
+                    
+                    // 模拟一个 300ms 的处理延迟，让 Loading 效果可见且丝滑
+                    setTimeout(() => {
+                        if (!hashText) {
+                            setSelectedTag('');
+                            setParentTag('');
+                        } else {
+                            const matchedTag = allTagsRaw.find(t => t.toLowerCase() === hashText.toLowerCase());
+                            const finalTag = matchedTag || hashText;
+                            setSelectedTag(finalTag);
+                            if (PRIORITY_EXACT_TAGS.has(finalTag)) {
+                                setParentTag(finalTag);
+                            }
                         }
-                    }
-                    setDisplayCount(40);
-                    window.scrollTo(0, 0);
+                        setDisplayCount(40);
+                        window.scrollTo(0, 0);
+                        setIsFiltering(false); // 结束加载动画
+                    }, 300);
                 };
                 
                 if (rawData.length > 0) handleHashChange();
@@ -120,13 +129,9 @@
 
             const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
-            // 导航标签分组逻辑
             const navGroups = useMemo(() => {
                 const priority = allTagsRaw.filter(t => PRIORITY_EXACT_TAGS.has(t)).sort();
-                
                 let normalBaseTags = [];
-                // 逻辑 2: 当点击子标签时，父类筛选器依然生效
-                // 如果当前有父类选中，第二行只展示该父类下的相关标签
                 if (parentTag) {
                     const relatedItems = rawData.filter(item => {
                         const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
@@ -140,17 +145,13 @@
                 return { priority, normal: normalBaseTags.sort() };
             }, [allTagsRaw, rawData, parentTag]);
 
-            // 过滤产品列表
             const filteredItems = useMemo(() => {
                 const q = searchQuery.toLowerCase().trim();
                 return rawData.filter(item => {
                     const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
                     const matchesSearch = q === '' || (item.标题 || "").toLowerCase().includes(q) || (item.货号 || "").toString().includes(q);
-                    
-                    // 核心筛选逻辑：必须同时满足选中的标签 (selectedTag) 和 固定的父类标签 (parentTag)
                     const matchesSelected = selectedTag === '' || itemTags.includes(selectedTag);
                     const matchesParent = parentTag === '' || itemTags.includes(parentTag);
-                    
                     return matchesSearch && matchesSelected && matchesParent;
                 });
             }, [rawData, searchQuery, selectedTag, parentTag]);
@@ -175,9 +176,18 @@
                         </div>
                     </header>
 
-                    <main className="max-w-[1920px] mx-auto px-4 mt-6 flex-1">
+                    <main className="max-w-[1920px] mx-auto px-4 mt-6 flex-1 relative">
+                        {/* 筛选时的 Loading 遮罩 */}
+                        {isFiltering && (
+                            <div className="fixed inset-0 z-30 bg-gray-50/50 backdrop-blur-[2px] flex items-center justify-center transition-opacity duration-300">
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="w-10 h-10 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin-slow"></div>
+                                    <span className="text-xs font-bold text-pink-500 tracking-widest uppercase">Loading Collections</span>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="mb-6 flex flex-col gap-2">
-                            {/* 第一行：Priority Tags */}
                             <div className="nav-section">
                                 <button onClick={() => updateTag('')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${!parentTag ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}>
                                     ALL
@@ -189,7 +199,6 @@
                                 ))}
                             </div>
 
-                            {/* 分割线与展开按钮 */}
                             {navGroups.normal.length > 0 && (
                                 <div className="flex items-center gap-2 mt-1">
                                     <div className="flex-1 border-top border-gray-200 border-dashed border-t"></div>
@@ -203,7 +212,6 @@
                                 </div>
                             )}
 
-                            {/* 第二行：Normal Tags */}
                             <div className={`nav-section transition-all duration-300 overflow-hidden relative ${isNavExpanded ? 'max-h-[2000px]' : 'max-h-24'}`}>
                                 {navGroups.normal.map(tag => (
                                     <button key={tag} onClick={() => updateTag(tag)} className={`px-3 py-1.5 rounded-md text-xs whitespace-nowrap transition border ${selectedTag === tag ? 'bg-black border-black text-white' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}>
@@ -216,8 +224,7 @@
                             </div>
                         </div>
 
-                        {/* 产品列表渲染 */}
-                        <div className="gallery-columns">
+                        <div className={`gallery-columns transition-opacity duration-300 ${isFiltering ? 'opacity-20' : 'opacity-100'}`}>
                             {filteredItems.slice(0, displayCount).map(item => {
                                 const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
                                 return (
@@ -239,7 +246,6 @@
                         </div>
                     </main>
 
-                    {/* Lightbox 弹窗 */}
                     {activeItem && (
                         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 transition-all" onClick={() => setActiveItem(null)}>
                             <div className="absolute top-0 w-full p-4 flex justify-between items-center z-50 text-white/80" onClick={e => e.stopPropagation()}>
