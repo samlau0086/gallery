@@ -74,27 +74,31 @@
             const [displayCount, setDisplayCount] = useState(40); 
 
             const WHATSAPP_NUMBER = "85265426672"; 
-            const BASE_ASSETS_URL = "https://images.maesvanti.store/";
+            const BASE_ASSETS_URL = "https://assets.maesvanti.store/";
             const PRIORITY_EXACT_TAGS = new Set(['Clothing', 'Bags', 'Shoes', 'Watches', 'Jewelry', 'Other', 'Hot Sale', 'Accessories']);
 
-            // 核心：匹配 Python 命名规则的 URL 生成函数
+            // --- 修正处：与 Python 逻辑严格一致的 URL 生成函数 ---
             const getCdnUrl = (originalUrl, item) => {
                 if (!originalUrl) return "";
                 try {
-                    // 1. 提取原始文件名 (例如: 1750349717925_9022_0_0.jpg)
-                    const urlObj = new URL(originalUrl);
-                    const originalFilename = urlObj.pathname.split('/').pop();
-                    
-                    // 2. 移除原后缀并改为 .webp
+                    // 1. 提取原始文件名：彻底移除查询参数，取路径的最后一部分
+                    // 这对应 Python 的 os.path.basename(urlparse(url).path)
+                    const cleanPath = originalUrl.split('?')[0]; // 先移除 ? 后面的参数
+                    const originalFilename = cleanPath.split('/').pop(); // 取 / 的最后一部分
+
+                    // 2. 构造不含扩展名的新文件名基础
                     const nameWithoutExt = originalFilename.replace(/\.[^/.]+$/, "");
-                    
-                    // 3. 按照 Python 规则拼接: {json_name}_{item_id}_{original_filename}.webp
-                    // 注意：item.source_json 是我们在加载数据时注入的
+
+                    // 3. 按照 Python 规则拼接: {json_name}_{item_id}_{original_filename}，然后将后缀设为 .webp
+                    // 注意：item.source_json 是我们在加载数据时注入的 json_base_name
                     const finalName = `${item.source_json}_${item.货号}_${nameWithoutExt}.webp`;
-                    
+
                     return BASE_ASSETS_URL + finalName;
                 } catch (e) {
-                    return originalUrl; // 出错则返回原图备用
+                    // 如果原 URL 格式有问题，作为回退方案，返回原 URL 
+                    // 或其他提示性占位，这里选择返回原 URL 避免彻底无法显示
+                    console.warn("Failed to generate CDN URL for:", originalUrl, e);
+                    return originalUrl; 
                 }
             };
 
@@ -149,7 +153,7 @@
                             // 注入文件名作为 source_json 供 URL 拼接使用
                             const processedChunk = chunk.map(item => ({
                                 ...item,
-                                source_json: jsonBaseName
+                                source_json: jsonBaseName // 这里的名字必须和 Python 脚本生成文件时用的 json_name 完全一致
                             }));
                             
                             allData = [...allData, ...processedChunk];
@@ -266,6 +270,7 @@
                                 return (
                                     <div key={item.ID} onClick={() => { setActiveItem(item); setCurrentImgIndex(0); setIsTitleExpanded(false); }} className="waterfall-item shadow-sm border border-gray-100 overflow-hidden cursor-pointer">
                                         <div className="img-container">
+                                            {/* 调用修正后的 getCdnUrl */}
                                             <img 
                                                 src={getCdnUrl(item.图片[0], item)} 
                                                 loading="lazy" 
@@ -300,11 +305,12 @@
                                 <button onClick={() => setActiveItem(null)} className="text-3xl p-2"><i className="fa fa-times"></i></button>
                             </div>
                             <div className="relative z-30 px-4 w-full h-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
+                                {/* 大图预览也调用修正后的 getCdnUrl */}
                                 <img src={getCdnUrl(activeItem.图片[currentImgIndex], activeItem)} className="max-h-[70vh] md:max-h-[80vh] w-auto object-contain shadow-2xl" />
                                 {activeItem.图片.length > 1 && (
                                     <div className="absolute inset-0 flex items-center justify-between px-2 pointer-events-none">
                                         <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev - 1 + activeItem.图片.length) % activeItem.图片.length); }} className="w-10 h-10 rounded-full bg-black/20 text-white pointer-events-auto"><i className="fa fa-chevron-left"></i></button>
-                                        <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev + 1) % activeItem.图片.length); }} className="w-10 h-10 rounded-full bg-black/20 text-white pointer-events-auto"><i className="fa fa-chevron-right"></i></button>
+                                        <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev + 1) % activeItem.ITEM.图片.length); }} className="w-10 h-10 rounded-full bg-black/20 text-white pointer-events-auto"><i className="fa fa-chevron-right"></i></button>
                                     </div>
                                 )}
                             </div>
