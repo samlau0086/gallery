@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Gallery - Professional Edition</title>
+    <title>Product Gallery - Fixed & Fast</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -37,15 +37,13 @@
             const [parentTag, setParentTag] = useState('');
             const [activeItem, setActiveItem] = useState(null);
             const [currentImgIndex, setCurrentImgIndex] = useState(0);
-            const [isTitleExpanded, setIsTitleExpanded] = useState(false);
             const [isNavExpanded, setIsNavExpanded] = useState(false);
             const [showBackToTop, setShowBackToTop] = useState(false);
-            const [isFiltering, setIsFiltering] = useState(false);
-            const [loadStatus, setLoadStatus] = useState('Checking database...');
+            const [loadStatus, setLoadStatus] = useState('Checking...');
             const [displayCount, setDisplayCount] = useState(40); 
 
             const WHATSAPP_NUMBER = "85265426672"; 
-            const BASE_ASSETS_URL = "https://images.maesvanti.store/";
+            const BASE_ASSETS_URL = "https://assets.maesvanti.store/";
             const PRIORITY_EXACT_TAGS = new Set(['Clothing', 'Bags', 'Shoes', 'Watches', 'Jewelry', 'Other', 'Hot Sale', 'Accessories']);
 
             const _extractFilename = (url) => {
@@ -62,13 +60,38 @@
                 } catch (e) { return originalUrl; }
             };
 
+            // 计算所有唯一标签
             const allTagsRaw = useMemo(() => {
-                return [...new Set(rawData.flatMap(i => {
-                    const t = i?.标签;
-                    return Array.isArray(t) ? t : (t ? [t] : []);
-                }))].filter(Boolean);
+                const tags = new Set();
+                rawData.forEach(item => {
+                    const itemTags = Array.isArray(item?.标签) ? item.标签 : (item?.标签 ? [item.标签] : []);
+                    itemTags.forEach(t => tags.add(t));
+                });
+                return [...tags].filter(Boolean);
             }, [rawData]);
 
+            // 计算分类分组 (补齐了之前丢失的部分)
+            const navGroups = useMemo(() => {
+                const priority = allTagsRaw.filter(t => PRIORITY_EXACT_TAGS.has(t)).sort();
+                let normalBaseTags = [];
+                if (parentTag) {
+                    const relatedItems = rawData.filter(item => {
+                        const tags = Array.isArray(item?.标签) ? item.标签 : (item?.标签 ? [item.标签] : []);
+                        return tags.includes(parentTag);
+                    });
+                    const relatedTags = new Set();
+                    relatedItems.forEach(i => {
+                        const tags = Array.isArray(i?.标签) ? i.标签 : (i?.标签 ? [i.标签] : []);
+                        tags.forEach(t => relatedTags.add(t));
+                    });
+                    normalBaseTags = [...relatedTags].filter(t => t !== parentTag && !PRIORITY_EXACT_TAGS.has(t));
+                } else {
+                    normalBaseTags = allTagsRaw.filter(t => !PRIORITY_EXACT_TAGS.has(t));
+                }
+                return { priority, normal: normalBaseTags.sort() };
+            }, [allTagsRaw, rawData, parentTag]);
+
+            // 过滤逻辑
             const filteredItems = useMemo(() => {
                 const q = searchQuery.toLowerCase().trim();
                 return rawData.filter(item => {
@@ -81,26 +104,25 @@
                 });
             }, [rawData, searchQuery, selectedTag, parentTag]);
 
-            // 1. 增量加载逻辑（移除阻塞交互的 UI）
+            // 增量加载
             useEffect(() => {
                 const fetchAllData = async () => {
                     try {
                         const resIndex = await fetch('./data_index.json');
                         const fileList = await resIndex.json();
                         for (let i = 0; i < fileList.length; i++) {
-                            // 仅更新文字状态，不显示全屏遮罩
                             setLoadStatus(`Syncing (${i + 1}/${fileList.length})...`);
                             const res = await fetch(`./${fileList[i]}`);
                             const chunk = await res.json();
                             setRawData(prev => [...prev, ...(Array.isArray(chunk) ? chunk : [])]);
                         }
-                        setLoadStatus(''); // 加载完成，清空文字状态
-                    } catch (err) { setLoadStatus('Offline Mode'); }
+                        setLoadStatus('');
+                    } catch (err) { setLoadStatus('Offline'); }
                 };
                 fetchAllData();
             }, []);
 
-            // 2. Hash 切换（保留轻量级反馈，防止点击分类时没反应）
+            // Hash 路由
             useEffect(() => {
                 const handleHashChange = () => {
                     const hashText = decodeURIComponent(window.location.hash.replace('#', '')).trim();
@@ -115,7 +137,7 @@
                 if (rawData.length > 0) handleHashChange();
                 window.addEventListener('hashchange', handleHashChange);
                 return () => window.removeEventListener('hashchange', handleHashChange);
-            }, [rawData.length > 0, allTagsRaw]);
+            }, [rawData.length, allTagsRaw]);
 
             useEffect(() => {
                 const handleScroll = () => {
@@ -138,7 +160,7 @@
                             <div className="relative flex-1">
                                 <input 
                                     type="text" 
-                                    placeholder={loadStatus || "Search by title or Art No..."} 
+                                    placeholder={loadStatus || "Search items..."} 
                                     className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-400 text-sm focus:outline-none bg-white/50"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -149,11 +171,10 @@
                     </header>
 
                     <main className="max-w-[1920px] mx-auto px-4 mt-6 flex-1">
-                        {/* 导航 */}
                         <div className="mb-6 flex flex-col gap-2">
                             <div className="nav-section">
                                 <button onClick={() => window.location.hash=''} className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${!parentTag ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}>ALL</button>
-                                {[...PRIORITY_EXACT_TAGS].map(tag => (
+                                {navGroups.priority.map(tag => (
                                     <button key={tag} onClick={() => window.location.hash=tag} className={`px-4 py-1.5 rounded-full text-xs font-bold transition border ${parentTag === tag ? 'bg-pink-500 border-pink-500 text-white' : 'bg-white border-pink-200 text-pink-600'}`}>
                                         {tag}
                                     </button>
@@ -161,10 +182,10 @@
                             </div>
                             {navGroups.normal.length > 0 && (
                                 <button onClick={() => setIsNavExpanded(!isNavExpanded)} className="text-[10px] font-bold text-gray-400 py-2 border-y border-gray-100 border-dashed my-1">
-                                    {isNavExpanded ? 'COLLAPSE COLLECTIONS' : `EXPAND MORE COLLECTIONS (${navGroups.normal.length})`}
+                                    {isNavExpanded ? 'HIDE COLLECTIONS' : `SHOW MORE COLLECTIONS (${navGroups.normal.length})`}
                                 </button>
                             )}
-                            <div className={`nav-section transition-all overflow-hidden ${isNavExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                            <div className={`nav-section transition-all overflow-hidden ${isNavExpanded ? 'max-h-[1000px] opacity-100 py-2' : 'max-h-0 opacity-0'}`}>
                                 {navGroups.normal.map(tag => (
                                     <button key={tag} onClick={() => window.location.hash=tag} className={`px-3 py-1.5 rounded-md text-xs border ${selectedTag === tag ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200'}`}>
                                         {tag}
@@ -173,7 +194,6 @@
                             </div>
                         </div>
 
-                        {/* 网格 - 始终保持可交互 */}
                         <div className="gallery-columns">
                             {filteredItems.slice(0, displayCount).map(item => (
                                 <div key={item.ID || Math.random()} onClick={() => { setActiveItem(item); setCurrentImgIndex(0); }} className="waterfall-item cursor-pointer hover:shadow-md transition-shadow">
@@ -189,17 +209,13 @@
                             ))}
                         </div>
 
-                        {/* 底部静默加载提示 */}
                         {(displayCount < filteredItems.length || loadStatus) && (
                             <div className="py-20 text-center text-gray-300 text-[10px] tracking-widest uppercase">
-                                {loadStatus ? (
-                                    <span><i className="fa fa-sync animate-spin mr-2"></i> Updating Gallery Database...</span>
-                                ) : "End of results"}
+                                {loadStatus ? "Updating Database..." : "End of results"}
                             </div>
                         )}
                     </main>
 
-                    {/* Lightbox - 保持原图渲染 */}
                     {activeItem && (
                         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95" onClick={() => setActiveItem(null)}>
                             <div className="absolute top-0 w-full p-4 flex justify-between items-center text-white/50" onClick={e => e.stopPropagation()}>
@@ -220,7 +236,7 @@
                                     {activeItem.标题}
                                 </div>
                                 <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Inquiry: " + activeItem.货号)}`} target="_blank" className="bg-[#25D366] text-white px-10 py-3 rounded-full font-bold flex items-center gap-2 shadow-lg">
-                                    <i className="fab fa-whatsapp text-xl"></i> Inquiry on WhatsApp
+                                    <i className="fab fa-whatsapp text-xl"></i> WhatsApp Sam
                                 </a>
                             </div>
                         </div>
@@ -228,7 +244,7 @@
 
                     <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
                         {showBackToTop && (
-                            <button onClick={() => window.scrollTo({top:0, behavior:'smooth'})} className="w-12 h-12 rounded-full bg-white shadow-xl flex items-center justify-center text-gray-400 border border-gray-100 hover:text-pink-500 transition-all">
+                            <button onClick={() => window.scrollTo({top:0, behavior:'smooth'})} className="w-12 h-12 rounded-full bg-white shadow-xl flex items-center justify-center text-gray-400 border border-gray-100 transition-all">
                                 <i className="fa fa-arrow-up"></i>
                             </button>
                         )}
