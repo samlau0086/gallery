@@ -3,52 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Gallery - Smooth Edition</title>
+    <title>Product Gallery - Professional Edition</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .gallery-columns { 
-            column-gap: 1rem; 
-            column-count: 2; 
-        }
-        @media (min-width: 1024px) { 
-            .gallery-columns { column-count: 8; } 
-        }
-
-        .waterfall-item { 
-            break-inside: avoid; 
-            margin-bottom: 1rem; 
-            transform: translateZ(0);
-            background: white;
-            border-radius: 0.5rem;
-        }
-
-        .img-container {
-            width: 100%;
-            background-color: #f3f4f6;
-            position: relative;
-            overflow: hidden;
-            min-height: 150px; 
-            aspect-ratio: 1 / 1;
-        }
-
-        .img-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-            transition: opacity 0.3s ease-in;
-        }
-
+        .gallery-columns { column-gap: 1rem; column-count: 2; }
+        @media (min-width: 1024px) { .gallery-columns { column-count: 8; } }
+        .waterfall-item { break-inside: avoid; margin-bottom: 1rem; transform: translateZ(0); background: white; border-radius: 0.5rem; overflow: hidden; }
+        .img-container { width: 100%; background-color: #f3f4f6; position: relative; overflow: hidden; min-height: 150px; aspect-ratio: 1 / 1; }
+        .img-container img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity 0.3s ease-in; }
         .glass-effect { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); }
         .tag-badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; border-width: 1px; white-space: nowrap; }
         .tag-hot { background-color: #fff1f2; color: #be123c; border-color: #fecdd3; font-weight: bold; }
         .tag-default { background-color: #f9fafb; color: #6b7280; border-color: #f3f4f6; }
         .nav-section { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
-        
         @keyframes spin { to { transform: rotate(360deg); } }
         .animate-spin-slow { animation: spin 1s linear infinite; }
     </style>
@@ -57,9 +28,10 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
+        const { useState, useEffect, useMemo } = React;
 
         function App() {
+            // --- 状态管理 ---
             const [rawData, setRawData] = useState([]);
             const [searchQuery, setSearchQuery] = useState('');
             const [selectedTag, setSelectedTag] = useState('');
@@ -73,125 +45,60 @@
             const [loadStatus, setLoadStatus] = useState('Initializing...');
             const [displayCount, setDisplayCount] = useState(40); 
 
+            // --- 配置 ---
             const WHATSAPP_NUMBER = "85265426672"; 
-            const BASE_ASSETS_URL = "https://images.maesvanti.store/";
+            const BASE_ASSETS_URL = "https://assets.maesvanti.store/";
             const PRIORITY_EXACT_TAGS = new Set(['Clothing', 'Bags', 'Shoes', 'Watches', 'Jewelry', 'Other', 'Hot Sale', 'Accessories']);
 
+            // --- 工具函数 ---
             const _extractFilename = (url) => {
                 if (!url) return "";
                 const cleanPath = url.split('?')[0]; 
                 return cleanPath.split('/').pop();
             }
 
-            // 瀑布流：使用 WebP 缩略图逻辑
+            // 瀑布流：WebP 缩略图逻辑 (基于合并时注入的 source_json)
             const getWebpThumbnailUrl = (originalUrl, item) => {
-                if (!originalUrl) return "";
+                if (!originalUrl || !item?.source_json) return originalUrl;
                 try {
                     const originalFilename = _extractFilename(originalUrl);
                     const nameWithoutExt = originalFilename.replace(/\.[^/.]+$/, "");
-                    const finalName = `${item.source_json}_${item.货号}_${nameWithoutExt}.webp`;
-                    return BASE_ASSETS_URL + finalName;
-                } catch (e) {
-                    return originalUrl; 
-                }
+                    return `${BASE_ASSETS_URL}${item.source_json}_${item.货号}_${nameWithoutExt}.webp`;
+                } catch (e) { return originalUrl; }
             };
 
-            // Lightbox：维持原始逻辑（显示数据中的原图 URL）
-            const getOriginalUrl = (originalUrl) => {
-                return originalUrl || "";
-            };
+            // Lightbox：原始格式逻辑 (维持数据中的原样，不改后缀)
+            const getOriginalUrl = (originalUrl) => originalUrl || "";
 
-            const getTagClass = (tag) => PRIORITY_EXACT_TAGS.has(tag) ? 'tag-hot' : 'tag-default';
-
+            // --- 数据计算 (带容错) ---
             const allTagsRaw = useMemo(() => {
-                return [...new Set(rawData.flatMap(i => Array.isArray(i.标签) ? i.标签 : (i.标签 ? [i.标签] : [])))].filter(Boolean);
+                return [...new Set(rawData.flatMap(i => {
+                    const tags = i?.标签;
+                    return Array.isArray(tags) ? tags : (tags ? [tags] : []);
+                }))].filter(Boolean);
             }, [rawData]);
 
-            // 处理 Hash 路由
-            useEffect(() => {
-                const handleHashChange = () => {
-                    setIsFiltering(true);
-                    const hashText = decodeURIComponent(window.location.hash.replace('#', '')).trim();
-                    setTimeout(() => {
-                        if (!hashText) {
-                            setSelectedTag('');
-                            setParentTag('');
-                        } else {
-                            const matchedTag = allTagsRaw.find(t => t.toLowerCase() === hashText.toLowerCase());
-                            const finalTag = matchedTag || hashText;
-                            setSelectedTag(finalTag);
-                            if (PRIORITY_EXACT_TAGS.has(finalTag)) setParentTag(finalTag);
-                        }
-                        setDisplayCount(40);
-                        window.scrollTo(0, 0);
-                        setIsFiltering(false);
-                    }, 300);
-                };
-                if (rawData.length > 0) handleHashChange();
-                window.addEventListener('hashchange', handleHashChange);
-                return () => window.removeEventListener('hashchange', handleHashChange);
-            }, [rawData.length > 0, allTagsRaw]);
-
-            const updateTag = (tag) => { window.location.hash = tag ? encodeURIComponent(tag) : ''; };
-
-            // --- 核心改进：增量分批加载 ---
-            useEffect(() => {
-                const fetchAllData = async () => {
-                    try {
-                        const resIndex = await fetch('./data_index.json');
-                        const fileList = await resIndex.json();
-                        
-                        for (let i = 0; i < fileList.length; i++) {
-                            // 更新加载进度状态
-                            setLoadStatus(`Loading ${i + 1}/${fileList.length}...`);
-                            
-                            const res = await fetch(`./${fileList[i]}`);
-                            const chunk = await res.json();
-                            
-                            // 立即更新数据状态，实现增量渲染
-                            setRawData(prev => {
-                                const combined = [...prev, ...chunk];
-                                // 第一批数据加载完，立刻让页面可交互
-                                if (i === 0) setLoadStatus('');
-                                return combined;
-                            });
-
-                            // 给 UI 线程一点时间去渲染当前分片
-                            if (i === 0) await new Promise(r => setTimeout(r, 50));
-                        }
-                        setLoadStatus(''); // 全部完成
-                    } catch (err) { 
-                        console.error(err);
-                        setLoadStatus('Load Failed.');
-                    }
-                };
-                fetchAllData();
-            }, []);
-
-            // 滚动加载更多及回顶
-            useEffect(() => {
-                const handleScroll = () => {
-                    const scrollBottom = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
-                    if (scrollBottom < 400) {
-                        setDisplayCount(prev => prev < filteredItems.length ? prev + 40 : prev);
-                    }
-                    setShowBackToTop(window.scrollY > 300);
-                };
-                window.addEventListener('scroll', handleScroll);
-                return () => window.removeEventListener('scroll', handleScroll);
-            }, [filteredItems.length]);
-
-            const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+            const filteredItems = useMemo(() => {
+                const q = searchQuery.toLowerCase().trim();
+                return rawData.filter(item => {
+                    if (!item) return false;
+                    const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
+                    const matchesSearch = !q || (item.标题 || "").toLowerCase().includes(q) || (item.货号 || "").toString().includes(q);
+                    const matchesSelected = !selectedTag || itemTags.includes(selectedTag);
+                    const matchesParent = !parentTag || itemTags.includes(parentTag);
+                    return matchesSearch && matchesSelected && matchesParent;
+                });
+            }, [rawData, searchQuery, selectedTag, parentTag]);
 
             const navGroups = useMemo(() => {
                 const priority = allTagsRaw.filter(t => PRIORITY_EXACT_TAGS.has(t)).sort();
                 let normalBaseTags = [];
                 if (parentTag) {
                     const relatedItems = rawData.filter(item => {
-                        const itemTags = Array.isArray(item.标签) ? item.标签 : [item.标签];
-                        return itemTags.includes(parentTag);
+                        const tags = Array.isArray(item?.标签) ? item.标签 : [item?.标签];
+                        return tags.includes(parentTag);
                     });
-                    const relatedTags = [...new Set(relatedItems.flatMap(i => Array.isArray(i.标签) ? i.标签 : [i.标签]))];
+                    const relatedTags = [...new Set(relatedItems.flatMap(i => Array.isArray(i?.标签) ? i.标签 : [i?.标签]))];
                     normalBaseTags = relatedTags.filter(t => t !== parentTag && !PRIORITY_EXACT_TAGS.has(t));
                 } else {
                     normalBaseTags = allTagsRaw.filter(t => !PRIORITY_EXACT_TAGS.has(t));
@@ -199,16 +106,60 @@
                 return { priority, normal: normalBaseTags.sort() };
             }, [allTagsRaw, rawData, parentTag]);
 
-            const filteredItems = useMemo(() => {
-                const q = searchQuery.toLowerCase().trim();
-                return rawData.filter(item => {
-                    const itemTags = Array.isArray(item.标签) ? item.标签 : [item.标签];
-                    const matchesSearch = !q || (item.标题 || "").toLowerCase().includes(q) || (item.货号 || "").toString().includes(q);
-                    const matchesSelected = !selectedTag || itemTags.includes(selectedTag);
-                    const matchesParent = !parentTag || itemTags.includes(parentTag);
-                    return matchesSearch && matchesSelected && matchesParent;
-                });
-            }, [rawData, searchQuery, selectedTag, parentTag]);
+            // --- 副作用 ---
+            // 1. 增量加载数据
+            useEffect(() => {
+                const fetchAllData = async () => {
+                    try {
+                        const resIndex = await fetch('./data_index.json');
+                        const fileList = await resIndex.json();
+                        for (let i = 0; i < fileList.length; i++) {
+                            setLoadStatus(`Loading ${i + 1}/${fileList.length}...`);
+                            const res = await fetch(`./${fileList[i]}`);
+                            const chunk = await res.json();
+                            setRawData(prev => [...prev, ...(Array.isArray(chunk) ? chunk : [])]);
+                            if (i === 0) setLoadStatus('');
+                            // 首屏渲染后给一点微小的延迟让出主线程
+                            if (i === 0) await new Promise(r => setTimeout(r, 30));
+                        }
+                        setLoadStatus('');
+                    } catch (err) { setLoadStatus('Load Failed.'); }
+                };
+                fetchAllData();
+            }, []);
+
+            // 2. Hash 路由
+            useEffect(() => {
+                const handleHashChange = () => {
+                    setIsFiltering(true);
+                    const hashText = decodeURIComponent(window.location.hash.replace('#', '')).trim();
+                    setTimeout(() => {
+                        if (!hashText) { setSelectedTag(''); setParentTag(''); }
+                        else {
+                            const matchedTag = allTagsRaw.find(t => t.toLowerCase() === hashText.toLowerCase()) || hashText;
+                            setSelectedTag(matchedTag);
+                            if (PRIORITY_EXACT_TAGS.has(matchedTag)) setParentTag(matchedTag);
+                        }
+                        setDisplayCount(40); window.scrollTo(0, 0); setIsFiltering(false);
+                    }, 300);
+                };
+                if (rawData.length > 0) handleHashChange();
+                window.addEventListener('hashchange', handleHashChange);
+                return () => window.removeEventListener('hashchange', handleHashChange);
+            }, [rawData.length, allTagsRaw]);
+
+            // 3. 无限滚动
+            useEffect(() => {
+                const handleScroll = () => {
+                    const scrollBottom = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
+                    if (scrollBottom < 500) setDisplayCount(prev => prev + 40);
+                    setShowBackToTop(window.scrollY > 300);
+                };
+                window.addEventListener('scroll', handleScroll);
+                return () => window.removeEventListener('scroll', handleScroll);
+            }, []);
+
+            const updateTag = (tag) => { window.location.hash = tag ? encodeURIComponent(tag) : ''; };
 
             return (
                 <div className="relative min-h-screen flex flex-col font-sans text-gray-900">
@@ -237,11 +188,10 @@
                             </div>
                         )}
 
+                        {/* 导航标签 */}
                         <div className="mb-6 flex flex-col gap-2">
                             <div className="nav-section">
-                                <button onClick={() => updateTag('')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${!parentTag ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}>
-                                    ALL
-                                </button>
+                                <button onClick={() => updateTag('')} className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${!parentTag ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}>ALL</button>
                                 {navGroups.priority.map(tag => (
                                     <button key={tag} onClick={() => updateTag(tag)} className={`px-4 py-1.5 rounded-full text-xs font-bold transition border ${parentTag === tag ? 'bg-pink-500 border-pink-500 text-white' : 'bg-white border-pink-200 text-pink-600'}`}>
                                         <i className="fa fa-star mr-1 text-[10px]"></i> {tag}
@@ -252,7 +202,7 @@
                                 <div className="flex items-center gap-2 mt-1">
                                     <div className="flex-1 border-t border-gray-200 border-dashed"></div>
                                     <button onClick={() => setIsNavExpanded(!isNavExpanded)} className="text-[10px] font-bold text-pink-500 uppercase tracking-widest">
-                                        {isNavExpanded ? 'Show Less' : `More Collections (${navGroups.normal.length})`}
+                                        {isNavExpanded ? 'Hide' : `More (${navGroups.normal.length})`}
                                     </button>
                                     <div className="flex-1 border-t border-gray-200 border-dashed"></div>
                                 </div>
@@ -266,11 +216,13 @@
                             </div>
                         </div>
 
+                        {/* 瀑布流网格 */}
                         <div className="gallery-columns">
                             {filteredItems.slice(0, displayCount).map(item => {
-                                const itemTags = Array.isArray(item.标签) ? item.标签 : [item.标签];
+                                if (!item || !item.图片 || item.图片.length === 0) return null;
+                                const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
                                 return (
-                                    <div key={item.ID} onClick={() => { setActiveItem(item); setCurrentImgIndex(0); setIsTitleExpanded(false); }} className="waterfall-item shadow-sm border border-gray-100 overflow-hidden cursor-pointer">
+                                    <div key={item.ID || Math.random()} onClick={() => { setActiveItem(item); setCurrentImgIndex(0); setIsTitleExpanded(false); }} className="waterfall-item shadow-sm border border-gray-100 cursor-pointer">
                                         <div className="img-container">
                                             <img 
                                                 src={getWebpThumbnailUrl(item.图片[0], item)} 
@@ -278,13 +230,15 @@
                                                 onLoad={(e) => e.target.style.opacity = 1}
                                                 style={{ opacity: 0 }}
                                             />
-                                            <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">{item.图片?.length}P</div>
+                                            <div className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">{item.图片.length}P</div>
                                         </div>
-                                        <div className="p-2 text-left bg-white">
+                                        <div className="p-2 bg-white">
                                             <p className="text-[10px] font-bold text-pink-600 truncate">{item.货号}</p>
                                             <h3 className="text-[11px] text-gray-700 line-clamp-1 mt-0.5 mb-2">{item.标题}</h3>
                                             <div className="flex flex-wrap gap-1">
-                                                {itemTags.map(t => <span key={t} className={`tag-badge ${getTagClass(t)}`}>{t}</span>)}
+                                                {itemTags.map(t => (
+                                                    <span key={t} className={`tag-badge ${PRIORITY_EXACT_TAGS.has(t) ? 'tag-hot' : 'tag-default'}`}>{t}</span>
+                                                ))}
                                             </div>
                                         </div>
                                     </div>
@@ -294,21 +248,21 @@
                         
                         {(displayCount < filteredItems.length || loadStatus) && (
                             <div className="py-10 text-center text-gray-400 text-xs tracking-widest uppercase">
-                                <i className="fa fa-circle-notch animate-spin mr-2"></i> {loadStatus ? "Syncing Database..." : "Loading More Content..."}
+                                <i className="fa fa-circle-notch animate-spin mr-2"></i> {loadStatus ? "Syncing..." : "Loading..."}
                             </div>
                         )}
                     </main>
 
+                    {/* Lightbox 详情弹窗 */}
                     {activeItem && (
                         <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95" onClick={() => setActiveItem(null)}>
                             <div className="absolute top-0 w-full p-4 flex justify-between items-center z-50 text-white/80" onClick={e => e.stopPropagation()}>
-                                <span className="text-sm font-mono">{currentImgIndex + 1} / {activeItem.图片.length}</span>
+                                <span className="text-sm font-mono">{currentImgIndex + 1} / {activeItem.图片?.length || 0}</span>
                                 <button onClick={() => setActiveItem(null)} className="text-3xl p-2"><i className="fa fa-times"></i></button>
                             </div>
                             <div className="relative z-30 px-4 w-full h-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
-                                {/* --- Lightbox 使用原图逻辑 --- */}
-                                <img src={getOriginalUrl(activeItem.图片[currentImgIndex])} className="max-h-[70vh] md:max-h-[80vh] w-auto object-contain shadow-2xl transition-all duration-300" />
-                                {activeItem.图片.length > 1 && (
+                                <img src={getOriginalUrl(activeItem.图片[currentImgIndex])} className="max-h-[70vh] md:max-h-[85vh] w-auto object-contain shadow-2xl transition-all" />
+                                {activeItem.图片?.length > 1 && (
                                     <div className="absolute inset-0 flex items-center justify-between px-2 pointer-events-none">
                                         <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev - 1 + activeItem.图片.length) % activeItem.图片.length); }} className="w-10 h-10 rounded-full bg-black/20 text-white pointer-events-auto"><i className="fa fa-chevron-left"></i></button>
                                         <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev + 1) % activeItem.图片.length); }} className="w-10 h-10 rounded-full bg-black/20 text-white pointer-events-auto"><i className="fa fa-chevron-right"></i></button>
@@ -317,20 +271,21 @@
                             </div>
                             <div className="absolute bottom-6 w-full flex flex-col items-center gap-4 z-40 px-6" onClick={e => e.stopPropagation()}>
                                 <div className="bg-[#3335] backdrop-blur-sm px-4 py-2 rounded-xl text-white text-[13px] text-center font-light border border-white/10 max-w-[95%] cursor-pointer" onClick={() => setIsTitleExpanded(!isTitleExpanded)}>
-                                    {isTitleExpanded ? activeItem.标题 : (activeItem.标题.length > 50 ? activeItem.标题.substring(0, 50) + "..." : activeItem.标题)}
+                                    {isTitleExpanded ? activeItem.标题 : (activeItem.标题?.substring(0, 50) + "...")}
                                 </div>
-                                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Sam, I'm interested in:\nItem: " + activeItem.货号)}`} target="_blank" className="bg-[#25D366] text-white px-8 py-2.5 rounded-full font-bold flex items-center gap-2 shadow-xl hover:scale-105 transition">
-                                    <i className="fab fa-whatsapp text-xl"></i> Inquiry Now
+                                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Inquiry:\n" + activeItem.货号)}`} target="_blank" className="bg-[#25D366] text-white px-8 py-2.5 rounded-full font-bold flex items-center gap-2 shadow-xl hover:scale-105 transition">
+                                    <i className="fab fa-whatsapp text-xl"></i> WhatsApp Sam
                                 </a>
                             </div>
                         </div>
                     )}
 
+                    {/* 浮动按钮 */}
                     <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
-                        <button onClick={scrollToTop} className={`w-14 h-14 rounded-full bg-white/90 backdrop-blur-md text-gray-600 flex items-center justify-center shadow-lg hover:scale-110 transition-all border border-gray-200 ${showBackToTop ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                        <button onClick={() => window.scrollTo({top:0, behavior:'smooth'})} className={`w-14 h-14 rounded-full bg-white/90 backdrop-blur-md text-gray-600 flex items-center justify-center shadow-lg border border-gray-200 transition ${showBackToTop ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                             <i className="fa fa-arrow-up text-xl"></i>
                         </button>
-                        <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" className="bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-all">
+                        <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" className="bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl">
                             <i className="fab fa-whatsapp text-3xl"></i>
                         </a>
                     </div>
