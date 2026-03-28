@@ -13,15 +13,21 @@ def merge_and_index():
         print(f"找不到目录: {SOURCE_DIR}")
         return
 
-    # 1. 读取并合并所有翻译后的数据
+    # 1. 读取并合并所有原始数据，同时注入来源文件名
     files = [f for f in os.listdir(SOURCE_DIR) if f.endswith('.json')]
     print(f"正在读取 {len(files)} 个文件...")
 
     for filename in files:
+        # 获取不含后缀的文件名，例如 'acne_clothing'
+        json_base_name = os.path.splitext(filename)[0]
+        
         with open(os.path.join(SOURCE_DIR, filename), 'r', encoding='utf-8') as f:
             try:
                 data = json.load(f)
                 if isinstance(data, list):
+                    # 为该文件下的每个商品注入 source_json 字段
+                    for item in data:
+                        item['source_json'] = json_base_name
                     all_items.extend(data)
             except Exception as e:
                 print(f"读取 {filename} 失败: {e}")
@@ -30,13 +36,11 @@ def merge_and_index():
     unique_tags = set()
     for item in all_items:
         tags = item.get('标签', [])
-        # 兼容处理：确保不管是字符串还是数组都能被正确读入 set
         if isinstance(tags, list):
             for t in tags:
                 if t: unique_tags.add(str(t).strip())
         elif isinstance(tags, str) and tags:
             unique_tags.add(tags.strip())
-            # 顺便把 item 里的字符串转成数组，统一格式
             item['标签'] = [tags.strip()]
 
     sorted_tags = sorted(list(unique_tags))
@@ -48,7 +52,7 @@ def merge_and_index():
         chunk = all_items[i : i + CHUNK_SIZE]
         chunk_filename = f'all_data_{i // CHUNK_SIZE}.json'
         with open(os.path.join(OUTPUT_DIR, chunk_filename), 'w', encoding='utf-8') as f:
-            # 这里的 json.dump 会完整保留数组结构
+            # 这里的 chunk 已经包含了注入的 source_json 字段
             json.dump(chunk, f, ensure_ascii=False)
         chunk_files.append(chunk_filename)
 
