@@ -78,28 +78,49 @@
             const PRIORITY_EXACT_TAGS = new Set(['Clothing', 'Bags', 'Shoes', 'Watches', 'Jewelry', 'Other', 'Hot Sale', 'Accessories']);
 
             /**
-             * 核心逻辑：生成符合 Python 规则的 CDN 路径
+             * 提取 URL 中的文件名（兼容 Python 的 os.path.basename 逻辑）
+             */
+            const _extractFilename = (url) => {
+                if (!url) return "";
+                const cleanPath = url.split('?')[0]; 
+                return cleanPath.split('/').pop();
+            }
+
+            /**
+             * 逻辑 A (用于瀑布流)：生成符合 Python 规则的 WebP 缩略图路径
              * 规则：base_url + json_name + "_" + item_id + "_" + original_filename + ".webp"
              */
-            const getCdnUrl = (originalUrl, item) => {
+            const getWebpThumbnailUrl = (originalUrl, item) => {
                 if (!originalUrl) return "";
                 try {
-                    // 1. 获取原始文件名（对应 Python 的 os.path.basename）
-                    const cleanPath = originalUrl.split('?')[0]; 
-                    const originalFilename = cleanPath.split('/').pop();
-
-                    // 2. 移除原后缀准备替换为 .webp
+                    const originalFilename = _extractFilename(originalUrl);
+                    // 移除原后缀准备替换为 .webp
                     const nameWithoutExt = originalFilename.replace(/\.[^/.]+$/, "");
-
-                    // 3. 拼接最终文件名
-                    // item.source_json 是由 merge_data.py 在合并时注入的原始文件名
+                    // item.source_json 来自 merge_data.py
                     const finalName = `${item.source_json}_${item.货号}_${nameWithoutExt}.webp`;
-
                     return BASE_ASSETS_URL + finalName;
                 } catch (e) {
-                    console.warn("CDN URL Error:", e);
+                    console.warn("WebP URL Error:", e);
                     return originalUrl; 
                 }
+            };
+
+            /**
+             * 逻辑 B (用于 Lightbox)：维持原来的逻辑，不改变图片后缀
+             * 仅负责拼凑出完整的原始路径 (例如：https://api.example.com/item/123.jpg)
+             */
+            const getOriginalApiUrl = (originalUrl, item) => {
+                // 如果你的数据文件中已经是完整的 URL (http/https 开头)，直接返回
+                if (originalUrl && originalUrl.startsWith('http')) {
+                    return originalUrl;
+                }
+                
+                // 如果数据文件中是相对路径，则需要根据你的原始 API 地址进行拼接
+                // 请将下面的 https://your-original-api-base-url.com/ 替换为你真正的 API 域名
+                const ORIGINAL_API_BASE = "https://your-original-api-base-url.com/"; 
+                
+                if (!originalUrl) return "";
+                return ORIGINAL_API_BASE + originalUrl;
             };
 
             const getTagClass = (tag) => PRIORITY_EXACT_TAGS.has(tag) ? 'tag-hot' : 'tag-default';
@@ -135,7 +156,6 @@
 
             const updateTag = (tag) => { window.location.hash = tag ? encodeURIComponent(tag) : ''; };
 
-            // 数据加载部分
             useEffect(() => {
                 const fetchAllData = async () => {
                     try {
@@ -146,7 +166,6 @@
                             setLoadStatus(`Loading ${i + 1}/${fileList.length}...`);
                             const res = await fetch(`./${fileList[i]}`);
                             const chunk = await res.json();
-                            // 注意：这里的 chunk 已经在 merge_data.py 处理时包含了 source_json
                             allData = [...allData, ...chunk];
                         }
                         setRawData(allData);
@@ -261,8 +280,9 @@
                                 return (
                                     <div key={item.ID} onClick={() => { setActiveItem(item); setCurrentImgIndex(0); setIsTitleExpanded(false); }} className="waterfall-item shadow-sm border border-gray-100 overflow-hidden cursor-pointer">
                                         <div className="img-container">
+                                            {/* --- 修改处：瀑布流调用 WebP 逻辑 --- */}
                                             <img 
-                                                src={getCdnUrl(item.图片[0], item)} 
+                                                src={getWebpThumbnailUrl(item.图片[0], item)} 
                                                 loading="lazy" 
                                                 onLoad={(e) => e.target.style.opacity = 1}
                                                 style={{ opacity: 0 }}
@@ -295,7 +315,8 @@
                                 <button onClick={() => setActiveItem(null)} className="text-3xl p-2"><i className="fa fa-times"></i></button>
                             </div>
                             <div className="relative z-30 px-4 w-full h-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
-                                <img src={getCdnUrl(activeItem.图片[currentImgIndex], activeItem)} className="max-h-[70vh] md:max-h-[80vh] w-auto object-contain shadow-2xl" />
+                                {/* --- 修改处：Lightbox 调用原始逻辑 --- */}
+                                <img src={getOriginalApiUrl(activeItem.图片[currentImgIndex], activeItem)} className="max-h-[70vh] md:max-h-[80vh] w-auto object-contain shadow-2xl" />
                                 {activeItem.图片.length > 1 && (
                                     <div className="absolute inset-0 flex items-center justify-between px-2 pointer-events-none">
                                         <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev - 1 + activeItem.图片.length) % activeItem.图片.length); }} className="w-10 h-10 rounded-full bg-black/20 text-white pointer-events-auto"><i className="fa fa-chevron-left"></i></button>
