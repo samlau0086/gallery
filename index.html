@@ -150,7 +150,7 @@
                                 ))}
                             </div>
                             {navGroups.normal.length > 0 && (
-                                <button onClick={() => setIsNavExpanded(!isNavExpanded)} className="text-[10px] font-bold text-gray-400 py-2 border-y border-gray-100 border-dashed my-1">{isNavExpanded ? 'HIDE' : 'MORE COLLECTIONS'}</button>
+                                <button onClick={() => setIsNavExpanded(!isNavExpanded)} className="text-[10px] font-bold text-pink-500 py-2 border-y border-gray-100 border-dashed my-1">{isNavExpanded ? 'HIDE' : 'EXPAND MORE COLLECTIONS'}</button>
                             )}
                             <div className={`nav-section transition-all overflow-hidden ${isNavExpanded ? 'max-h-[1000px] opacity-100 py-2' : 'max-h-0 opacity-0'}`}>
                                 {navGroups.normal.map(tag => (
@@ -214,7 +214,7 @@
                                     {activeItem.标题}
                                 </div>
                                 <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Inquiry: " + activeItem.货号)}`} target="_blank" className="bg-[#25D366] text-white px-10 py-3 rounded-full font-bold flex items-center gap-3 shadow-lg hover:scale-105 transition-transform">
-                                    <i className="fab fa-whatsapp text-xl"></i> WhatsApp Sam
+                                    <i className="fab fa-whatsapp text-xl"></i> WhatsApp Us
                                 </a>
                             </div>
                         </div>
@@ -222,17 +222,31 @@
 
                     {/* Welcome Modal */}
                     {showWelcomeModal && (
-                        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => { setShowWelcomeModal(false); localStorage.setItem('hasVisitedAlbum', 'true'); }}>
-                            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-modal" onClick={e => e.stopPropagation()}>
-                                <div className="h-32 bg-gradient-to-r from-pink-400 to-rose-500 flex items-center justify-center"><i className="fa fa-star text-white text-5xl opacity-80"></i></div>
-                                <div className="p-8 text-center">
-                                    <h2 className="text-2xl font-black mb-4">Welcome to ALBUM<span className="text-pink-500">.</span></h2>
-                                    <p className="text-gray-600 mb-6 leading-relaxed text-sm">Discover our professional collections. Use the search bar for tags or IDs, and click any item to inquire via WhatsApp.</p>
-                                    <button onClick={() => { setShowWelcomeModal(false); localStorage.setItem('hasVisitedAlbum', 'true'); }} className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition">Get Started</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+			    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => { setShowWelcomeModal(false); localStorage.setItem('hasVisitedAlbum', 'true'); }}>
+			        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-modal" onClick={e => e.stopPropagation()}>
+			            {/* 顶部装饰 */}
+			            <div className="h-32 bg-gradient-to-r from-pink-400 to-rose-500 flex items-center justify-center">
+			                <i className="fa fa-star text-white text-5xl opacity-80"></i>
+			            </div>
+			            
+			            <div className="p-8 text-center">
+			                <h2 className="text-2xl font-black mb-4">Welcome to Maesvanti<span className="text-pink-500">.</span></h2>
+			                <p className="text-gray-600 mb-4 leading-relaxed text-sm">Discover our professional collections. Use the search bar for tags or IDs, and click any item to inquire via WhatsApp.</p>
+			                
+			                {/* 插入图片：注意 /> 结尾和样式控制 */}
+			                <img 
+			                    src="https://images.maesvanti.store/use-guide.webp" 
+			                    className="w-full rounded-xl border border-gray-100 mb-6 shadow-sm"
+			                    alt="User Guide"
+			                />
+
+			                <button onClick={() => { setShowWelcomeModal(false); localStorage.setItem('hasVisitedAlbum', 'true'); }} className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition">
+			                    Get Started
+			                </button>
+			            </div>
+			        </div>
+			    </div>
+			)}
 
                     <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
                         {showBackToTop && <button onClick={() => window.scrollTo({top:0, behavior:'smooth'})} className="w-12 h-12 rounded-full bg-white shadow-xl flex items-center justify-center text-gray-400 border border-gray-100"><i className="fa fa-arrow-up"></i></button>}
