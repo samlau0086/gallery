@@ -89,17 +89,29 @@
                 return { priority, normal: normalBaseTags.sort() };
             }, [allTagsRaw, rawData, parentTag]);
 
-            const filteredItems = useMemo(() => {
-                const q = searchQuery.toLowerCase().trim();
-                return rawData.filter(item => {
-                    if (!item) return false;
-                    const tags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
-                    const matchesSearch = !q || (item.标题 || "").toLowerCase().includes(q) || (item.货号 || "").toString().includes(q);
-                    const matchesSelected = !selectedTag || tags.includes(selectedTag);
-                    const matchesParent = !parentTag || tags.includes(parentTag);
-                    return matchesSearch && matchesSelected && matchesParent;
-                });
-            }, [rawData, searchQuery, selectedTag, parentTag]);
+            // --- 过滤逻辑：已增加标签搜索支持 ---
+		const filteredItems = useMemo(() => {
+		    const q = searchQuery.toLowerCase().trim();
+		    return rawData.filter(item => {
+		        if (!item) return false;
+		        
+		        // 1. 获取当前商品的所有标签并转为小写字符串，用于比对
+		        const tags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
+		        const tagsString = tags.join(' ').toLowerCase();
+		        
+		        // 2. 搜索比对逻辑：标题 OR 货号 OR 标签数组
+		        const matchesSearch = !q || 
+		            (item.标题 || "").toLowerCase().includes(q) || 
+		            (item.货号 || "").toString().includes(q) ||
+		            tagsString.includes(q); // 新增：支持搜索标签内容
+
+		        // 3. 侧边栏/导航栏点击过滤逻辑
+		        const matchesSelected = !selectedTag || tags.includes(selectedTag);
+		        const matchesParent = !parentTag || tags.includes(parentTag);
+
+		        return matchesSearch && matchesSelected && matchesParent;
+		    });
+		}, [rawData, searchQuery, selectedTag, parentTag]);
 
             // --- 副作用 ---
             useEffect(() => {
