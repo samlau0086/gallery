@@ -77,28 +77,50 @@
             const BASE_ASSETS_URL = "https://images.maesvanti.store/";
             const PRIORITY_EXACT_TAGS = new Set(['Clothing', 'Bags', 'Shoes', 'Watches', 'Jewelry', 'Other', 'Hot Sale', 'Accessories']);
 
+            /**
+             * 提取 URL 中的文件名（兼容 Python 的 os.path.basename 逻辑）
+             */
             const _extractFilename = (url) => {
                 if (!url) return "";
                 const cleanPath = url.split('?')[0]; 
                 return cleanPath.split('/').pop();
             }
 
-            // 瀑布流：使用 WebP 缩略图逻辑
+            /**
+             * 逻辑 A (用于瀑布流)：生成符合 Python 规则的 WebP 缩略图路径
+             * 规则：base_url + json_name + "_" + item_id + "_" + original_filename + ".webp"
+             */
             const getWebpThumbnailUrl = (originalUrl, item) => {
                 if (!originalUrl) return "";
                 try {
                     const originalFilename = _extractFilename(originalUrl);
+                    // 移除原后缀准备替换为 .webp
                     const nameWithoutExt = originalFilename.replace(/\.[^/.]+$/, "");
+                    // item.source_json 来自 merge_data.py
                     const finalName = `${item.source_json}_${item.货号}_${nameWithoutExt}.webp`;
                     return BASE_ASSETS_URL + finalName;
                 } catch (e) {
+                    console.warn("WebP URL Error:", e);
                     return originalUrl; 
                 }
             };
 
-            // Lightbox：维持原始逻辑（显示数据中的原图 URL）
-            const getOriginalUrl = (originalUrl) => {
-                return originalUrl || "";
+            /**
+             * 逻辑 B (用于 Lightbox)：维持原来的逻辑，不改变图片后缀
+             * 仅负责拼凑出完整的原始路径 (例如：https://api.example.com/item/123.jpg)
+             */
+            const getOriginalApiUrl = (originalUrl, item) => {
+                // 如果你的数据文件中已经是完整的 URL (http/https 开头)，直接返回
+                if (originalUrl && originalUrl.startsWith('http')) {
+                    return originalUrl;
+                }
+                
+                // 如果数据文件中是相对路径，则需要根据你的原始 API 地址进行拼接
+                // 请将下面的 https://your-original-api-base-url.com/ 替换为你真正的 API 域名
+                const ORIGINAL_API_BASE = "https://your-original-api-base-url.com/"; 
+                
+                if (!originalUrl) return "";
+                return ORIGINAL_API_BASE + originalUrl;
             };
 
             const getTagClass = (tag) => PRIORITY_EXACT_TAGS.has(tag) ? 'tag-hot' : 'tag-default';
@@ -107,11 +129,11 @@
                 return [...new Set(rawData.flatMap(i => Array.isArray(i.标签) ? i.标签 : (i.标签 ? [i.标签] : [])))].filter(Boolean);
             }, [rawData]);
 
-            // 处理 Hash 路由
             useEffect(() => {
                 const handleHashChange = () => {
                     setIsFiltering(true);
                     const hashText = decodeURIComponent(window.location.hash.replace('#', '')).trim();
+                    
                     setTimeout(() => {
                         if (!hashText) {
                             setSelectedTag('');
@@ -130,56 +152,40 @@
                 if (rawData.length > 0) handleHashChange();
                 window.addEventListener('hashchange', handleHashChange);
                 return () => window.removeEventListener('hashchange', handleHashChange);
-            }, [rawData.length > 0, allTagsRaw]);
+            }, [rawData, allTagsRaw]);
 
             const updateTag = (tag) => { window.location.hash = tag ? encodeURIComponent(tag) : ''; };
 
-            // --- 核心改进：增量分批加载 ---
             useEffect(() => {
                 const fetchAllData = async () => {
                     try {
                         const resIndex = await fetch('./data_index.json');
                         const fileList = await resIndex.json();
-                        
+                        let allData = [];
                         for (let i = 0; i < fileList.length; i++) {
-                            // 更新加载进度状态
                             setLoadStatus(`Loading ${i + 1}/${fileList.length}...`);
-                            
                             const res = await fetch(`./${fileList[i]}`);
                             const chunk = await res.json();
-                            
-                            // 立即更新数据状态，实现增量渲染
-                            setRawData(prev => {
-                                const combined = [...prev, ...chunk];
-                                // 第一批数据加载完，立刻让页面可交互
-                                if (i === 0) setLoadStatus('');
-                                return combined;
-                            });
-
-                            // 给 UI 线程一点时间去渲染当前分片
-                            if (i === 0) await new Promise(r => setTimeout(r, 50));
+                            allData = [...allData, ...chunk];
                         }
-                        setLoadStatus(''); // 全部完成
-                    } catch (err) { 
-                        console.error(err);
-                        setLoadStatus('Load Failed.');
-                    }
+                        setRawData(allData);
+                        setLoadStatus('');
+                    } catch (err) { console.error(err); }
                 };
                 fetchAllData();
             }, []);
 
-            // 滚动加载更多及回顶
             useEffect(() => {
                 const handleScroll = () => {
                     const scrollBottom = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
-                    if (scrollBottom < 400) {
+                    if (scrollBottom < 200) {
                         setDisplayCount(prev => prev < filteredItems.length ? prev + 40 : prev);
                     }
                     setShowBackToTop(window.scrollY > 300);
                 };
                 window.addEventListener('scroll', handleScroll);
                 return () => window.removeEventListener('scroll', handleScroll);
-            }, [filteredItems.length]);
+            }, [rawData.length, searchQuery, selectedTag, parentTag]);
 
             const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -188,7 +194,7 @@
                 let normalBaseTags = [];
                 if (parentTag) {
                     const relatedItems = rawData.filter(item => {
-                        const itemTags = Array.isArray(item.标签) ? item.标签 : [item.标签];
+                        const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
                         return itemTags.includes(parentTag);
                     });
                     const relatedTags = [...new Set(relatedItems.flatMap(i => Array.isArray(i.标签) ? i.标签 : [i.标签]))];
@@ -202,10 +208,10 @@
             const filteredItems = useMemo(() => {
                 const q = searchQuery.toLowerCase().trim();
                 return rawData.filter(item => {
-                    const itemTags = Array.isArray(item.标签) ? item.标签 : [item.标签];
-                    const matchesSearch = !q || (item.标题 || "").toLowerCase().includes(q) || (item.货号 || "").toString().includes(q);
-                    const matchesSelected = !selectedTag || itemTags.includes(selectedTag);
-                    const matchesParent = !parentTag || itemTags.includes(parentTag);
+                    const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
+                    const matchesSearch = q === '' || (item.标题 || "").toLowerCase().includes(q) || (item.货号 || "").toString().includes(q);
+                    const matchesSelected = selectedTag === '' || itemTags.includes(selectedTag);
+                    const matchesParent = parentTag === '' || itemTags.includes(parentTag);
                     return matchesSearch && matchesSelected && matchesParent;
                 });
             }, [rawData, searchQuery, selectedTag, parentTag]);
@@ -220,7 +226,7 @@
                             <div className="relative flex-1">
                                 <input 
                                     type="text" 
-                                    placeholder={loadStatus || "Search items..."} 
+                                    placeholder={loadStatus || "Search..."} 
                                     className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-400 text-sm focus:outline-none"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -233,7 +239,9 @@
                     <main className="max-w-[1920px] mx-auto px-4 mt-6 flex-1 relative">
                         {isFiltering && (
                             <div className="fixed inset-0 z-30 bg-gray-50/50 backdrop-blur-[2px] flex items-center justify-center">
-                                <div className="w-10 h-10 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin"></div>
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="w-10 h-10 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin-slow"></div>
+                                </div>
                             </div>
                         )}
 
@@ -250,11 +258,11 @@
                             </div>
                             {navGroups.normal.length > 0 && (
                                 <div className="flex items-center gap-2 mt-1">
-                                    <div className="flex-1 border-t border-gray-200 border-dashed"></div>
+                                    <div className="flex-1 border-top border-gray-200 border-dashed border-t"></div>
                                     <button onClick={() => setIsNavExpanded(!isNavExpanded)} className="text-[10px] font-bold text-pink-500 uppercase tracking-widest">
-                                        {isNavExpanded ? 'Show Less' : `More Collections (${navGroups.normal.length})`}
+                                        {isNavExpanded ? 'Show Less' : `Show More Collections (${navGroups.normal.length})`}
                                     </button>
-                                    <div className="flex-1 border-t border-gray-200 border-dashed"></div>
+                                    <div className="flex-1 border-top border-gray-200 border-dashed border-t"></div>
                                 </div>
                             )}
                             <div className={`nav-section transition-all duration-300 overflow-hidden relative ${isNavExpanded ? 'max-h-[2000px]' : 'max-h-24'}`}>
@@ -266,12 +274,13 @@
                             </div>
                         </div>
 
-                        <div className="gallery-columns">
+                        <div className={`gallery-columns transition-opacity duration-300 ${isFiltering ? 'opacity-20' : 'opacity-100'}`}>
                             {filteredItems.slice(0, displayCount).map(item => {
-                                const itemTags = Array.isArray(item.标签) ? item.标签 : [item.标签];
+                                const itemTags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
                                 return (
                                     <div key={item.ID} onClick={() => { setActiveItem(item); setCurrentImgIndex(0); setIsTitleExpanded(false); }} className="waterfall-item shadow-sm border border-gray-100 overflow-hidden cursor-pointer">
                                         <div className="img-container">
+                                            {/* --- 修改处：瀑布流调用 WebP 逻辑 --- */}
                                             <img 
                                                 src={getWebpThumbnailUrl(item.图片[0], item)} 
                                                 loading="lazy" 
@@ -292,9 +301,9 @@
                             })}
                         </div>
                         
-                        {(displayCount < filteredItems.length || loadStatus) && (
-                            <div className="py-10 text-center text-gray-400 text-xs tracking-widest uppercase">
-                                <i className="fa fa-circle-notch animate-spin mr-2"></i> {loadStatus ? "Syncing Database..." : "Loading More Content..."}
+                        {displayCount < filteredItems.length && (
+                            <div className="py-10 text-center text-gray-400 text-xs tracking-widest">
+                                <i className="fa fa-circle-notch animate-spin mr-2"></i> LOADING MORE...
                             </div>
                         )}
                     </main>
@@ -306,8 +315,8 @@
                                 <button onClick={() => setActiveItem(null)} className="text-3xl p-2"><i className="fa fa-times"></i></button>
                             </div>
                             <div className="relative z-30 px-4 w-full h-full flex items-center justify-center" onClick={e => e.stopPropagation()}>
-                                {/* --- Lightbox 使用原图逻辑 --- */}
-                                <img src={getOriginalUrl(activeItem.图片[currentImgIndex])} className="max-h-[70vh] md:max-h-[80vh] w-auto object-contain shadow-2xl transition-all duration-300" />
+                                {/* --- 修改处：Lightbox 调用原始逻辑 --- */}
+                                <img src={getOriginalApiUrl(activeItem.图片[currentImgIndex], activeItem)} className="max-h-[70vh] md:max-h-[80vh] w-auto object-contain shadow-2xl" />
                                 {activeItem.图片.length > 1 && (
                                     <div className="absolute inset-0 flex items-center justify-between px-2 pointer-events-none">
                                         <button onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(prev => (prev - 1 + activeItem.图片.length) % activeItem.图片.length); }} className="w-10 h-10 rounded-full bg-black/20 text-white pointer-events-auto"><i className="fa fa-chevron-left"></i></button>
@@ -317,7 +326,7 @@
                             </div>
                             <div className="absolute bottom-6 w-full flex flex-col items-center gap-4 z-40 px-6" onClick={e => e.stopPropagation()}>
                                 <div className="bg-[#3335] backdrop-blur-sm px-4 py-2 rounded-xl text-white text-[13px] text-center font-light border border-white/10 max-w-[95%] cursor-pointer" onClick={() => setIsTitleExpanded(!isTitleExpanded)}>
-                                    {isTitleExpanded ? activeItem.标题 : (activeItem.标题.length > 50 ? activeItem.标题.substring(0, 50) + "..." : activeItem.标题)}
+                                    {isTitleExpanded ? activeItem.标题 : (activeItem.标题.substring(0, 50) + "...")}
                                 </div>
                                 <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Hi Sam, I'm interested in:\nItem: " + activeItem.货号)}`} target="_blank" className="bg-[#25D366] text-white px-8 py-2.5 rounded-full font-bold flex items-center gap-2 shadow-xl hover:scale-105 transition">
                                     <i className="fab fa-whatsapp text-xl"></i> Inquiry Now
