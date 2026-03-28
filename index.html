@@ -222,70 +222,78 @@
                         )}
                     </main>
 
-                    {/* Lightbox - Fixed Close Button */}
-                    {activeItem && (
-                        <div 
-                            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 backdrop-blur-sm" 
-                            onClick={() => setActiveItem(null)}
-                        >
-                            {/* Toolbar */}
-                            <div className="absolute top-0 w-full p-6 flex justify-between items-center z-[110] text-white/50">
-                                <span className="text-xs font-mono bg-white/10 px-3 py-1 rounded-full">
-                                    {currentImgIndex + 1} / {activeItem.图片?.length || 0}
-                                </span>
-                                <button 
-                                    onClick={(e) => {
-                                        e.stopPropagation(); 
-                                        setActiveItem(null); 
-                                    }} 
-                                    className="text-4xl p-4 hover:text-white transition-colors cursor-pointer"
-                                    style={{ WebkitTapHighlightColor: 'transparent' }}
-                                >
-                                    <i className="fa fa-times"></i>
-                                </button>
-                            </div>
+                   {/* Lightbox 详情弹窗 - 已修复箭头定位问题 */}
+			{activeItem && (
+			    <div 
+			        className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 backdrop-blur-sm" 
+			        onClick={() => setActiveItem(null)} // 点击背景关闭
+			    >
+			        {/* 顶部工具栏 - 叉号和页码 */}
+			        <div className="absolute top-0 w-full p-6 flex justify-between items-center z-[110] text-white/50">
+			            <span className="text-xs font-mono bg-white/10 px-3 py-1 rounded-full">
+			                {currentImgIndex + 1} / {activeItem.图片?.length || 0}
+			            </span>
+			            <button 
+			                onClick={(e) => {
+			                    e.stopPropagation(); // 阻止点击传给父层容器
+			                    setActiveItem(null); // 执行关闭
+			                }} 
+			                className="text-4xl p-4 hover:text-white transition-colors cursor-pointer"
+			                style={{ WebkitTapHighlightColor: 'transparent' }} // 移动端消除点击阴影
+			            >
+			                <i className="fa fa-times"></i>
+			            </button>
+			        </div>
 
-                            {/* Image Container */}
-                            <div className="relative w-full h-full flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
-                                <img 
-                                    key={currentImgIndex}
-                                    src={activeItem.图片?.[currentImgIndex]} 
-                                    className="max-h-full max-w-full object-contain shadow-2xl" 
-                                />
-                                {activeItem.图片?.length > 1 && (
-                                    <div className="absolute inset-x-4 flex justify-between pointer-events-none w-full max-w-6xl">
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(p => (p - 1 + activeItem.图片.length) % activeItem.图片.length); }} 
-                                            className="w-12 h-12 rounded-full bg-white/5 text-white pointer-events-auto hover:bg-white/10 transition flex items-center justify-center"
-                                        >
-                                            <i className="fa fa-chevron-left text-xl"></i>
-                                        </button>
-                                        <button 
-                                            onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(p => (p + 1) % activeItem.图片.length); }} 
-                                            className="w-12 h-12 rounded-full bg-white/5 text-white pointer-events-auto hover:bg-white/10 transition flex items-center justify-center"
-                                        >
-                                            <i className="fa fa-chevron-right text-xl"></i>
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+			        {/* 图片主体区域 */}
+			        <div className="relative w-full h-full flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
+			            <img 
+			                key={currentImgIndex} // 切换图片时触发 React 的 key 机制，从而重新渲染，保证加载顺利
+			                src={activeItem.图片?.[currentImgIndex]} 
+			                className="max-h-full max-w-full object-contain shadow-2xl transition-all" 
+			            />
+			            
+			            {/* 关键修复：导航箭头直接相对于屏幕边缘定位 */}
+			            {activeItem.图片?.length > 1 && (
+			                <div className="absolute inset-0 flex items-center justify-between px-4 md:px-6 pointer-events-none z-[115]">
+			                    <button 
+			                        onClick={(e) => { 
+			                            e.stopPropagation(); 
+			                            setCurrentImgIndex(p => (p - 1 + activeItem.图片.length) % activeItem.图片.length); 
+			                        }} 
+			                        className="w-12 h-12 rounded-full bg-white/5 text-white pointer-events-auto hover:bg-white/10 transition flex items-center justify-center group"
+			                    >
+			                        <i className="fa fa-chevron-left text-xl group-hover:-translate-x-0.5 transition-transform"></i>
+			                    </button>
+			                    <button 
+			                        onClick={(e) => { 
+			                            e.stopPropagation(); 
+			                            setCurrentImgIndex(p => (p + 1) % activeItem.图片.length); 
+			                        }} 
+			                        className="w-12 h-12 rounded-full bg-white/5 text-white pointer-events-auto hover:bg-white/10 transition flex items-center justify-center group"
+			                    >
+			                        <i className="fa fa-chevron-right text-xl group-hover:translate-x-0.5 transition-transform"></i>
+			                    </button>
+			                </div>
+			            )}
+			        </div>
 
-                            {/* Info & CTA */}
-                            <div className="absolute bottom-8 w-full flex flex-col items-center gap-4 px-6 z-[110]" onClick={e => e.stopPropagation()}>
-                                <div className="text-white/80 text-xs text-center max-w-md px-4 py-3 bg-black/5 rounded-xl border border-white/10 backdrop-blur-md">
-                                    <p className="font-bold text-pink-400 mb-1">{activeItem.货号}</p>
-                                    {activeItem.标题}
-                                </div>
-                                <a 
-                                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Inquiry: " + activeItem.货号)}`} 
-                                    target="_blank" 
-                                    className="bg-[#25D366] text-white px-10 py-3 rounded-full font-bold flex items-center gap-3 shadow-lg hover:scale-105 transition-transform"
-                                >
-                                    <i className="fab fa-whatsapp text-xl"></i> WhatsApp Sam
-                                </a>
-                            </div>
-                        </div>
-                    )}
+			        {/* 底部信息栏与 Inquiry 按钮 */}
+			        <div className="absolute bottom-8 w-full flex flex-col items-center gap-4 px-6 z-[110]" onClick={e => e.stopPropagation()}>
+			            <div className="text-white/80 text-xs text-center max-w-md px-4 py-3 bg-white/5 rounded-xl border border-white/10 backdrop-blur-md">
+			                <p className="font-bold text-pink-400 mb-1">{activeItem.货号}</p>
+			                {activeItem.标题}
+			            </div>
+			            <a 
+			                href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Inquiry: " + activeItem.货号)}`} 
+			                target="_blank" 
+			                className="bg-[#25D366] text-white px-10 py-3 rounded-full font-bold flex items-center gap-3 shadow-lg hover:scale-105 transition-transform"
+			            >
+			                <i className="fab fa-whatsapp text-xl"></i> WhatsApp Sam
+			            </a>
+			        </div>
+			    </div>
+			)}
 
                     {/* Floating Actions */}
                     <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
