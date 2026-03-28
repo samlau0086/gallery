@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Product Gallery - Sam Edition</title>
+    <title>Product Gallery - Professional Edition</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -19,17 +19,23 @@
         .glass-effect { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); }
         .nav-section { display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes modalFadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .animate-modal { animation: modalFadeIn 0.3s ease-out forwards; }
+        
+        /* 弹出层动画 */
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-modal { animation: modalFadeIn 0.4s ease-out forwards; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, useCallback } = React;
 
         function App() {
+            // --- 状态管理 ---
             const [rawData, setRawData] = useState([]);
             const [searchQuery, setSearchQuery] = useState('');
             const [selectedTag, setSelectedTag] = useState('');
@@ -38,14 +44,19 @@
             const [currentImgIndex, setCurrentImgIndex] = useState(0);
             const [isNavExpanded, setIsNavExpanded] = useState(false);
             const [showBackToTop, setShowBackToTop] = useState(false);
-            const [loadStatus, setLoadStatus] = useState('Checking...');
+            const [loadStatus, setLoadStatus] = useState('Initializing...');
             const [displayCount, setDisplayCount] = useState(40); 
             const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+            
+            // --- 新增：Lightbox 标题展开状态 ---
+            const [isLightboxTitleExpanded, setIsLightboxTitleExpanded] = useState(false);
 
+            // --- 配置 ---
             const WHATSAPP_NUMBER = "85265426672"; 
             const BASE_ASSETS_URL = "https://images.maesvanti.store/";
             const PRIORITY_EXACT_TAGS = new Set(['Clothing', 'Bags', 'Shoes', 'Watches', 'Jewelry', 'Other', 'Hot Sale', 'Accessories']);
 
+            // --- 工具函数 ---
             const getWebpThumbnailUrl = (originalUrl, item) => {
                 if (!originalUrl || !item?.source_json) return originalUrl;
                 try {
@@ -55,6 +66,7 @@
                 } catch (e) { return originalUrl; }
             };
 
+            // --- 数据计算 ---
             const allTagsRaw = useMemo(() => {
                 const tags = new Set();
                 rawData.forEach(item => {
@@ -66,26 +78,46 @@
 
             const navGroups = useMemo(() => {
                 const priority = allTagsRaw.filter(t => PRIORITY_EXACT_TAGS.has(t));
-                let normalBaseTags = parentTag 
-                    ? [...new Set(rawData.filter(i => (Array.isArray(i.标签)?i.标签:[i.标签]).includes(parentTag)).flatMap(i => Array.isArray(i.标签)?i.标签:[i.标签]))].filter(t => t !== parentTag && !PRIORITY_EXACT_TAGS.has(t))
-                    : allTagsRaw.filter(t => !PRIORITY_EXACT_TAGS.has(t));
+                let normalBaseTags = [];
+                if (parentTag) {
+                    const relatedItems = rawData.filter(item => {
+                        const tags = Array.isArray(item?.标签) ? item.标签 : (item?.标签 ? [item.标签] : []);
+                        return tags.includes(parentTag);
+                    });
+                    const relatedTags = new Set();
+                    relatedItems.forEach(i => {
+                        const tags = Array.isArray(i?.标签) ? i.标签 : (i?.标签 ? [i.标签] : []);
+                        tags.forEach(t => relatedTags.add(t));
+                    });
+                    normalBaseTags = [...relatedTags].filter(t => t !== parentTag && !PRIORITY_EXACT_TAGS.has(t));
+                } else {
+                    normalBaseTags = allTagsRaw.filter(t => !PRIORITY_EXACT_TAGS.has(t));
+                }
                 return { priority, normal: normalBaseTags.sort() };
             }, [allTagsRaw, rawData, parentTag]);
 
-            // 增强的过滤逻辑：支持标题、货号、标签搜索
             const filteredItems = useMemo(() => {
                 const q = searchQuery.toLowerCase().trim();
                 return rawData.filter(item => {
                     if (!item) return false;
+                    
                     const tags = Array.isArray(item.标签) ? item.标签 : (item.标签 ? [item.标签] : []);
                     const tagsString = tags.join(' ').toLowerCase();
-                    const matchesSearch = !q || (item.标题 || "").toLowerCase().includes(q) || (item.货号 || "").toString().includes(q) || tagsString.includes(q);
+
+                    const matchesSearch = !q || 
+                        (item.标题 || "").toLowerCase().includes(q) || 
+                        (item.货号 || "").toString().includes(q) ||
+                        tagsString.includes(q);
+
                     const matchesSelected = !selectedTag || tags.includes(selectedTag);
                     const matchesParent = !parentTag || tags.includes(parentTag);
+
                     return matchesSearch && matchesSelected && matchesParent;
                 });
             }, [rawData, searchQuery, selectedTag, parentTag]);
 
+            // --- 副作用 ---
+            
             useEffect(() => {
                 const fetchAllData = async () => {
                     try {
@@ -98,10 +130,9 @@
                             setRawData(prev => [...prev, ...(Array.isArray(chunk) ? chunk : [])]);
                         }
                         setLoadStatus('');
-                    } catch (err) { setLoadStatus('Offline'); }
+                    } catch (err) { setLoadStatus('Error Loading Data'); }
                 };
                 fetchAllData();
-                if (!localStorage.getItem('hasVisitedAlbum')) setTimeout(() => setShowWelcomeModal(true), 1000);
             }, []);
 
             useEffect(() => {
@@ -122,84 +153,154 @@
 
             useEffect(() => {
                 const handleScroll = () => {
-                    if ((document.documentElement.scrollHeight - window.innerHeight - window.scrollY) < 600) setDisplayCount(prev => prev + 40);
+                    if ((document.documentElement.scrollHeight - window.innerHeight - window.scrollY) < 600) {
+                        setDisplayCount(prev => prev + 40);
+                    }
                     setShowBackToTop(window.scrollY > 400);
                 };
                 window.addEventListener('scroll', handleScroll);
                 return () => window.removeEventListener('scroll', handleScroll);
             }, []);
+            
+            useEffect(() => {
+                const hasVisited = localStorage.getItem('hasVisitedAlbum');
+                if (!hasVisited) {
+                    const timer = setTimeout(() => {
+                        setShowWelcomeModal(true);
+                    }, 1000);
+                    return () => clearTimeout(timer);
+                }
+            }, []);
+            
+            const closeWelcomeModal = () => {
+                setShowWelcomeModal(false);
+                localStorage.setItem('hasVisitedAlbum', 'true');
+            };
+
+            // --- 新增：打开 Lightbox 时重置标题状态 ---
+            const openLightbox = (item) => {
+                setActiveItem(item);
+                setCurrentImgIndex(0);
+                setIsLightboxTitleExpanded(false); // 每次打开新的，都默认不展开标题
+            };
 
             return (
                 <div className="relative min-h-screen flex flex-col font-sans text-gray-900">
+                    {/* Header */}
                     <header className="sticky top-0 z-40 glass-effect border-b border-gray-200 py-3 px-4">
                         <div className="max-w-[1920px] mx-auto flex items-center gap-4">
-                            <div className="text-xl font-black tracking-tighter cursor-pointer shrink-0" onClick={() => window.location.hash=''}>ALBUM<span className="text-pink-500">.</span></div>
+                            <div className="text-xl font-black tracking-tighter cursor-pointer shrink-0" onClick={() => window.location.hash=''}>
+                                ALBUM<span className="text-pink-500">.</span>
+                            </div>
                             <div className="relative flex-1">
-                                <input type="text" placeholder={loadStatus || "Search items, tags..."} className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-400 text-sm focus:outline-none bg-white/50" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                                <input 
+                                    type="text" 
+                                    placeholder={loadStatus || "Search items or tags..."} 
+                                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-pink-400 text-sm focus:outline-none bg-white/50"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
                                 <i className={`fa ${loadStatus ? 'fa-circle-notch animate-spin text-pink-400' : 'fa-search text-gray-400'} absolute left-3 top-3`}></i>
                             </div>
                         </div>
                     </header>
 
-                    <main className="max-w-[1920px] mx-auto px-4 mt-6 flex-1">
+                    {/* Main Content */}
+                    <main className="max-w-[1920px] mx-auto px-4 mt-6 flex-1 relative">
+                        {/* Navigation Tags */}
                         <div className="mb-6 flex flex-col gap-2">
                             <div className="nav-section">
                                 <button onClick={() => window.location.hash=''} className={`px-4 py-1.5 rounded-full text-xs font-bold transition ${!parentTag ? 'bg-black text-white' : 'bg-gray-100 text-gray-600'}`}>ALL</button>
                                 {navGroups.priority.map(tag => (
-                                    <button key={tag} onClick={() => window.location.hash=tag} className={`px-4 py-1.5 rounded-full text-xs font-bold transition border ${parentTag === tag ? 'bg-pink-500 border-pink-500 text-white' : 'bg-white border-pink-200 text-pink-600'}`}>{tag}</button>
+                                    <button key={tag} onClick={() => window.location.hash=tag} className={`px-4 py-1.5 rounded-full text-xs font-bold transition border ${parentTag === tag ? 'bg-pink-500 border-pink-500 text-white' : 'bg-white border-pink-200 text-pink-600'}`}>
+                                        {tag}
+                                    </button>
                                 ))}
                             </div>
                             {navGroups.normal.length > 0 && (
-                                <button onClick={() => setIsNavExpanded(!isNavExpanded)} className="text-[10px] font-bold text-pink-500 py-2 border-y border-gray-100 border-dashed my-1">{isNavExpanded ? 'HIDE' : 'EXPAND MORE COLLECTIONS'}</button>
+                                <button onClick={() => setIsNavExpanded(!isNavExpanded)} className="text-[10px] font-bold text-pink-500 py-2 border-y border-gray-100 border-dashed my-1 hover:text-pink-500 transition-colors">
+                                    {isNavExpanded ? 'HIDE COLLECTIONS' : `EXPAND MORE COLLECTIONS (${navGroups.normal.length})`}
+                                </button>
                             )}
-                            <div className={`nav-section transition-all overflow-hidden ${isNavExpanded ? 'max-h-[1000px] opacity-100 py-2' : 'max-h-0 opacity-0'}`}>
+                            <div className={`nav-section transition-all duration-300 overflow-hidden ${isNavExpanded ? 'max-h-[1000px] opacity-100 py-2' : 'max-h-0 opacity-0'}`}>
                                 {navGroups.normal.map(tag => (
-                                    <button key={tag} onClick={() => window.location.hash=tag} className={`px-3 py-1.5 rounded-md text-xs border ${selectedTag === tag ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200'}`}>{tag}</button>
+                                    <button key={tag} onClick={() => window.location.hash=tag} className={`px-3 py-1.5 rounded-md text-xs border ${selectedTag === tag ? 'bg-black text-white border-black' : 'bg-white text-gray-500 border-gray-200'}`}>
+                                        {tag}
+                                    </button>
                                 ))}
                             </div>
                         </div>
 
+                        {/* Waterfall Grid */}
                         <div className="gallery-columns">
-                            {filteredItems.slice(0, displayCount).map(item => (
-                                <div key={item.ID || Math.random()} onClick={() => { setActiveItem(item); setCurrentImgIndex(0); }} className="waterfall-item cursor-pointer">
-                                    <div className="img-container">
-                                        <img src={getWebpThumbnailUrl(item.图片?.[0], item)} loading="lazy" onLoad={(e) => e.target.style.opacity = 1} style={{ opacity: 0 }} />
-                                        <div className="absolute bottom-1 right-1 bg-black/40 backdrop-blur-sm text-white text-[9px] px-1.5 py-0.5 rounded">{item.图片?.length}P</div>
+                            {filteredItems.slice(0, displayCount).map(item => {
+                                if (!item?.图片) return null;
+                                return (
+                                    <div key={item.ID || Math.random()} onClick={() => openLightbox(item)} className="waterfall-item cursor-pointer hover:shadow-lg transition-shadow">
+                                        <div className="img-container">
+                                            <img src={getWebpThumbnailUrl(item.图片[0], item)} loading="lazy" onLoad={(e) => e.target.style.opacity = 1} style={{ opacity: 0 }} alt={item.标题} />
+                                            <div className="absolute bottom-1 right-1 bg-black/40 backdrop-blur-sm text-white text-[9px] px-1.5 py-0.5 rounded">
+                                                {Array.isArray(item.图片) ? item.图片.length : 0}P
+                                            </div>
+                                        </div>
+                                        <div className="p-2">
+                                            <p className="text-[10px] font-bold text-pink-600 uppercase tracking-tight truncate">{item.货号}</p>
+                                            <h3 className="text-[11px] text-gray-700 line-clamp-1 mt-0.5">{item.标题}</h3>
+                                        </div>
                                     </div>
-                                    <div className="p-2">
-                                        <p className="text-[10px] font-bold text-pink-600 uppercase truncate">{item.货号}</p>
-                                        <h3 className="text-[11px] text-gray-700 line-clamp-1">{item.标题}</h3>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
+
+                        {/* Loading Indicator */}
+                        {(displayCount < filteredItems.length || loadStatus) && (
+                            <div className="py-20 text-center text-gray-300 text-[10px] tracking-widest uppercase">
+                                {loadStatus ? "Syncing Database..." : "Scroll for more"}
+                            </div>
+                        )}
                     </main>
 
-                    {/* Lightbox - 彻底修复箭头与关闭按钮 */}
+                    {/* Lightbox 弹窗 - 彻底修复标题遮挡问题 */}
                     {activeItem && (
-                        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm flex flex-col items-center justify-center" onClick={() => setActiveItem(null)}>
-                            {/* 顶部状态与关闭 */}
-                            <div className="absolute top-0 w-full p-6 flex justify-between items-center z-[120]">
-                                <span className="text-xs font-mono text-white/50 bg-white/10 px-3 py-1 rounded-full">{currentImgIndex + 1} / {activeItem.图片?.length}</span>
-                                <button onClick={(e) => { e.stopPropagation(); setActiveItem(null); }} className="text-4xl text-white/70 hover:text-white p-2 cursor-pointer"><i className="fa fa-times"></i></button>
+                        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/95 backdrop-blur-sm" onClick={() => setActiveItem(null)}>
+                            {/* 顶部工具栏 - 叉号和页码 */}
+                            <div className="absolute top-0 w-full p-6 flex justify-between items-center z-[120] text-white/50">
+                                <span className="text-xs font-mono bg-white/10 px-3 py-1 rounded-full">
+                                    {currentImgIndex + 1} / {activeItem.图片?.length || 0}
+                                </span>
+                                <button 
+                                    onClick={(e) => {
+                                        e.stopPropagation(); 
+                                        setActiveItem(null); 
+                                    }} 
+                                    className="text-4xl p-4 hover:text-white transition-colors cursor-pointer"
+                                    style={{ WebkitTapHighlightColor: 'transparent' }} 
+                                >
+                                    <i className="fa fa-times"></i>
+                                </button>
                             </div>
 
-                            {/* 图片核心区 */}
+                            {/* 图片主体区域 */}
                             <div className="relative w-full h-full flex items-center justify-center p-4" onClick={e => e.stopPropagation()}>
-                                <img key={currentImgIndex} src={activeItem.图片?.[currentImgIndex]} className="max-h-full max-w-full object-contain shadow-2xl transition-all" />
+                                <img 
+                                    key={currentImgIndex}
+                                    src={activeItem.图片?.[currentImgIndex]} 
+                                    className="max-h-full max-w-full object-contain shadow-2xl transition-all animate-modal" 
+                                    alt={activeItem.标题}
+                                />
                                 
-                                {/* 导航箭头 - 独立定位，互不干扰 */}
+                                {/* 导航箭头 */}
                                 {activeItem.图片?.length > 1 && (
                                     <React.Fragment>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(p => (p - 1 + activeItem.图片.length) % activeItem.图片.length); }} 
-                                            className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/5 text-white hover:bg-white/10 flex items-center justify-center z-[130] cursor-pointer"
+                                            className="absolute left-4 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/5 text-white hover:bg-white/10 transition flex items-center justify-center z-[130] cursor-pointer"
                                         >
                                             <i className="fa fa-chevron-left text-2xl"></i>
                                         </button>
                                         <button 
                                             onClick={(e) => { e.stopPropagation(); setCurrentImgIndex(p => (p + 1) % activeItem.图片.length); }} 
-                                            className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/5 text-white hover:bg-white/10 flex items-center justify-center z-[130] cursor-pointer"
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/5 text-white hover:bg-white/10 transition flex items-center justify-center z-[130] cursor-pointer"
                                         >
                                             <i className="fa fa-chevron-right text-2xl"></i>
                                         </button>
@@ -207,51 +308,74 @@
                                 )}
                             </div>
 
-                            {/* 底部信息与按钮 */}
-                            <div className="absolute bottom-8 w-full flex flex-col items-center gap-4 px-6 z-[120]" onClick={e => e.stopPropagation()}>
-                                <div className="text-white/80 text-xs text-center max-w-md px-4 py-3 bg-white/5 rounded-xl border border-white/10 backdrop-blur-md">
-                                    <p className="font-bold text-pink-400 mb-1">{activeItem.货号}</p>
-                                    {activeItem.标题}
+                            {/* 底部信息栏与 Inquiry 按钮 - 关键修复：增加“显示更多”逻辑 */}
+                            <div className="absolute bottom-0 w-full flex flex-col items-center gap-3 px-6 pb-8 pt-4 z-[110]" onClick={e => e.stopPropagation()}>
+                                <div className="text-white/80 text-xs text-center max-w-md w-full px-4 py-3 bg-white/5 rounded-xl border border-white/10 backdrop-blur-md relative">
+                                    <p className="font-bold text-pink-400 mb-1.5 uppercase tracking-wide">{activeItem.货号}</p>
+                                    
+                                    {/* 标题控制：默认截断，点击展开 */}
+                                    <h3 className={`transition-all leading-relaxed ${isLightboxTitleExpanded ? 'block' : 'line-clamp-2'}`}>
+                                        {activeItem.标题}
+                                    </h3>
+                                    
+                                    {/* 如果标题真的很长（超过了大概的行数），显示 Show More 按钮 */}
+                                    {activeItem.标题 && activeItem.标题.length > 60 && (
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsLightboxTitleExpanded(!isLightboxTitleExpanded);
+                                            }}
+                                            className="text-[11px] font-bold text-pink-300 mt-2 cursor-pointer block mx-auto py-1 px-3 bg-pink-500/10 rounded-full"
+                                        >
+                                            {isLightboxTitleExpanded ? 'Hide' : 'Show Full Title'}
+                                        </button>
+                                    )}
                                 </div>
-                                <a href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Inquiry: " + activeItem.货号)}`} target="_blank" className="bg-[#25D366] text-white px-10 py-3 rounded-full font-bold flex items-center gap-3 shadow-lg hover:scale-105 transition-transform">
+                                <a 
+                                    href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Inquiry on Maesvanti:\nItem: " + activeItem.货号)}`} 
+                                    target="_blank" 
+                                    className="bg-[#25D366] text-white px-10 py-3 rounded-full font-bold flex items-center gap-2.5 shadow-xl hover:scale-105 transition-transform"
+                                >
                                     <i className="fab fa-whatsapp text-xl"></i> WhatsApp Us
                                 </a>
                             </div>
                         </div>
                     )}
 
-                    {/* Welcome Modal */}
-                    {showWelcomeModal && (
-			    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => { setShowWelcomeModal(false); localStorage.setItem('hasVisitedAlbum', 'true'); }}>
-			        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-modal" onClick={e => e.stopPropagation()}>
-			            {/* 顶部装饰 */}
-			            <div className="h-32 bg-gradient-to-r from-pink-400 to-rose-500 flex items-center justify-center">
-			                <i className="fa fa-star text-white text-5xl opacity-80"></i>
-			            </div>
-			            
-			            <div className="p-8 text-center">
-			                <h2 className="text-2xl font-black mb-4">Welcome to Maesvanti<span className="text-pink-500">.</span></h2>
-			                <p className="text-gray-600 mb-4 leading-relaxed text-sm">Discover our professional collections. Use the search bar for tags or IDs, and click any item to inquire via WhatsApp.</p>
-			                
-			                {/* 插入图片：注意 /> 结尾和样式控制 */}
-			                <img 
-			                    src="https://images.maesvanti.store/use-guide.webp" 
-			                    className="w-full rounded-xl border border-gray-100 mb-6 shadow-sm"
-			                    alt="User Guide"
-			                />
-
-			                <button onClick={() => { setShowWelcomeModal(false); localStorage.setItem('hasVisitedAlbum', 'true'); }} className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-800 transition">
-			                    Get Started
-			                </button>
-			            </div>
-			        </div>
-			    </div>
-			)}
-
+                    {/* Floating Actions */}
                     <div className="fixed bottom-6 right-6 z-40 flex flex-col gap-3">
-                        {showBackToTop && <button onClick={() => window.scrollTo({top:0, behavior:'smooth'})} className="w-12 h-12 rounded-full bg-white shadow-xl flex items-center justify-center text-gray-400 border border-gray-100"><i className="fa fa-arrow-up"></i></button>}
-                        <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" className="bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-all"><i className="fab fa-whatsapp text-3xl"></i></a>
+                        {showBackToTop && (
+                            <button onClick={() => window.scrollTo({top:0, behavior:'smooth'})} className="w-12 h-12 rounded-full bg-white shadow-xl flex items-center justify-center text-gray-400 border border-gray-100 hover:text-pink-500 transition-all">
+                                <i className="fa fa-arrow-up text-lg"></i>
+                            </button>
+                        )}
+                        <a href={`https://wa.me/${WHATSAPP_NUMBER}`} target="_blank" className="bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 transition-all">
+                            <i className="fab fa-whatsapp text-3xl"></i>
+                        </a>
                     </div>
+                    
+                    {/* 首次访问欢迎 Popup Modal */}
+                    {showWelcomeModal && (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={closeWelcomeModal}>
+                            <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-modal" onClick={e => e.stopPropagation()}>
+                                <div className="h-32 bg-gradient-to-r from-pink-300 via-pink-400 to-red-400 flex items-center justify-center">
+                                    <i className="fa fa-gift text-white text-6xl opacity-80"></i>
+                                </div>
+                                <div className="p-8 text-center">
+                                    <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight mb-3">Welcome to <span className="text-pink-500">Maesvanti.</span></h2>
+                                    <p className="text-gray-600 mb-6 leading-relaxed">Discover our professional collections. Use the search bar for tags or IDs, and click any item to inquire via WhatsApp.</p>
+			{/* 插入图片：注意 /> 结尾和样式控制 */}
+		                <img 
+		                    src="https://images.maesvanti.store/use-guide.webp" 
+		                    className="w-full rounded-xl border border-gray-100 mb-6 shadow-sm"
+		                    alt="User Guide"
+		                />
+                                    <button onClick={closeWelcomeModal} className="w-full bg-gray-900 text-white py-3.5 rounded-xl font-bold text-lg hover:bg-gray-800 transition shadow-md active:scale-[0.98]">Got it, let's browse!</button>
+                                </div>
+                                <button onClick={closeWelcomeModal} className="absolute top-4 right-4 text-white/70 hover:text-white text-2xl p-2 cursor-pointer"><i className="fa fa-times"></i></button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
