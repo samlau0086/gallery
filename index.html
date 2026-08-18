@@ -58,9 +58,10 @@
         @media (max-width: 639px) {
             .welcome-modal {
                 display: grid;
-                height: calc(100vh - 2rem);
-                height: calc(100dvh - 2rem);
-                grid-template-rows: 6rem minmax(0, 1fr) auto;
+                height: auto;
+                max-height: calc(100vh - 4rem);
+                max-height: calc(100dvh - 4rem);
+                grid-template-rows: auto minmax(0, 1fr) auto;
             }
             .welcome-modal-header { grid-row: 1; }
             .welcome-modal-content { grid-row: 2; }
@@ -398,7 +399,7 @@
                     {/* 首次访问欢迎 Popup Modal */}
                     {showWelcomeModal && (
                         <div className="fixed inset-0 z-[200] flex items-start sm:items-center justify-center overflow-y-auto bg-black/60 backdrop-blur-sm p-4" onClick={closeWelcomeModal}>
-                            <div className="welcome-modal relative my-0 sm:my-4 w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl animate-modal" onClick={e => e.stopPropagation()}>
+                            <div className="welcome-modal relative my-4 w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl animate-modal" onClick={e => e.stopPropagation()}>
                                 <div className="welcome-modal-header flex items-center justify-center bg-gradient-to-r from-pink-300 via-pink-400 to-red-400 sm:h-32 sm:flex-[0_0_8rem]">
                                     <i className="fa fa-gift text-white text-6xl opacity-80"></i>
                                 </div>
