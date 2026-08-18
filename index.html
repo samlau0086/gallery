@@ -29,6 +29,8 @@
 
         /* Welcome modal stays inside the viewport on narrow screens. */
         .welcome-modal {
+            display: flex;
+            flex-direction: column;
             max-height: calc(100vh - 2rem);
             max-height: calc(100dvh - 2rem);
         }
@@ -42,6 +44,11 @@
             flex: 0 0 6rem;
             height: 6rem;
         }
+        .welcome-modal-footer {
+            flex: 0 0 auto;
+            padding: 0 1.25rem 1.25rem;
+            background: white;
+        }
         .welcome-modal-guide {
             display: block;
             width: 100%;
@@ -49,7 +56,16 @@
             object-fit: contain;
         }
         @media (max-width: 639px) {
-            .welcome-modal-guide { max-height: 36vh; }
+            .welcome-modal {
+                display: grid;
+                height: calc(100vh - 2rem);
+                height: calc(100dvh - 2rem);
+                grid-template-rows: 6rem minmax(0, 1fr) auto;
+            }
+            .welcome-modal-header { grid-row: 1; }
+            .welcome-modal-content { grid-row: 2; }
+            .welcome-modal-footer { grid-row: 3; }
+            .welcome-modal-guide { max-height: 30vh; }
         }
     </style>
 </head>
@@ -382,7 +398,7 @@
                     {/* 首次访问欢迎 Popup Modal */}
                     {showWelcomeModal && (
                         <div className="fixed inset-0 z-[200] flex items-start sm:items-center justify-center overflow-y-auto bg-black/60 backdrop-blur-sm p-4" onClick={closeWelcomeModal}>
-                            <div className="welcome-modal relative my-0 sm:my-4 flex w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl animate-modal" onClick={e => e.stopPropagation()}>
+                            <div className="welcome-modal relative my-0 sm:my-4 w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl animate-modal" onClick={e => e.stopPropagation()}>
                                 <div className="welcome-modal-header flex items-center justify-center bg-gradient-to-r from-pink-300 via-pink-400 to-red-400 sm:h-32 sm:flex-[0_0_8rem]">
                                     <i className="fa fa-gift text-white text-6xl opacity-80"></i>
                                 </div>
@@ -395,6 +411,8 @@
 		                    className="welcome-modal-guide mb-5 rounded-xl border border-gray-100 shadow-sm sm:mb-6"
 		                    alt="User Guide"
 		                />
+                                </div>
+                                <div className="welcome-modal-footer sm:px-8 sm:pb-8">
                                     <button onClick={closeWelcomeModal} className="w-full rounded-xl bg-gray-900 py-3.5 text-base font-bold text-white shadow-md transition hover:bg-gray-800 active:scale-[0.98] sm:text-lg">Got it, let's browse!</button>
                                 </div>
                                 <button onClick={closeWelcomeModal} aria-label="Close welcome dialog" className="absolute right-3 top-3 z-10 cursor-pointer p-2 text-2xl text-white/80 hover:text-white sm:right-4 sm:top-4"><i className="fa fa-times"></i></button>
