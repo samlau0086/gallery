@@ -55,6 +55,26 @@
             height: auto;
             object-fit: contain;
         }
+        .welcome-modal-dismiss {
+            position: fixed;
+            top: 0.75rem;
+            right: 0.75rem;
+            top: max(0.75rem, env(safe-area-inset-top));
+            right: max(0.75rem, env(safe-area-inset-right));
+            z-index: 230;
+            display: flex;
+            width: 3rem;
+            height: 3rem;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid rgba(255, 255, 255, 0.9);
+            border-radius: 9999px;
+            background: #111827;
+            color: white;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
         @media (max-width: 639px) {
             .welcome-modal {
                 display: grid;
@@ -213,6 +233,15 @@
                     return () => clearTimeout(timer);
                 }
             }, []);
+
+            useEffect(() => {
+                if (!showWelcomeModal) return;
+                const handleKeyDown = (event) => {
+                    if (event.key === 'Escape') closeWelcomeModal();
+                };
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [showWelcomeModal]);
             
             const closeWelcomeModal = () => {
                 setShowWelcomeModal(false);
@@ -399,6 +428,14 @@
                     {/* 首次访问欢迎 Popup Modal */}
                     {showWelcomeModal && (
                         <div className="fixed inset-0 z-[200] flex items-start sm:items-center justify-center overflow-y-auto bg-black/60 backdrop-blur-sm p-4" onClick={closeWelcomeModal}>
+                            <button
+                                type="button"
+                                onClick={(event) => { event.stopPropagation(); closeWelcomeModal(); }}
+                                aria-label="Close welcome dialog"
+                                className="welcome-modal-dismiss"
+            >
+                                <span aria-hidden="true">&times;</span>
+                            </button>
                             <div className="welcome-modal relative my-4 w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl animate-modal" onClick={e => e.stopPropagation()}>
                                 <div className="welcome-modal-header flex items-center justify-center bg-gradient-to-r from-pink-300 via-pink-400 to-red-400 sm:h-32 sm:flex-[0_0_8rem]">
                                     <i className="fa fa-gift text-white text-6xl opacity-80"></i>
@@ -416,7 +453,6 @@
                                 <div className="welcome-modal-footer sm:px-8 sm:pb-8">
                                     <button onClick={closeWelcomeModal} className="w-full rounded-xl bg-gray-900 py-3.5 text-base font-bold text-white shadow-md transition hover:bg-gray-800 active:scale-[0.98] sm:text-lg">Got it, let's browse!</button>
                                 </div>
-                                <button onClick={closeWelcomeModal} aria-label="Close welcome dialog" className="absolute right-3 top-3 z-10 cursor-pointer p-2 text-2xl text-white/80 hover:text-white sm:right-4 sm:top-4"><i className="fa fa-times"></i></button>
                             </div>
                         </div>
                     )}
